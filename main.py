@@ -1,5 +1,6 @@
 from matplotlib import pyplot as plt
 
+
 class Chunk:
     def __init__(self, id, size, data):
         self.id = id
@@ -12,6 +13,7 @@ class Chunk:
         print(self.data)
     pass
 
+
 class WavFile:
     def __init__(self, a, b, c):
         self.riff_descriptor = a
@@ -19,8 +21,7 @@ class WavFile:
         self.data = c
     pass
 
-# arr = []
-data = []
+sample_len = 0
 f = open(file="sine440.wav", mode="rb")
 
 while 1:
@@ -30,11 +31,13 @@ while 1:
         # print(size)
     else:
         break
+    data = []
     if id == "RIFF":
         data = [bytes.decode(f.read(4))]
         riffChunk = Chunk(id, size, data)
         riffChunk.print()
     elif id == "fmt ":
+        sample_len = int(size / 8)
         data = [int.from_bytes(f.read(2), byteorder="little"), int.from_bytes(f.read(2), byteorder="little"), int.from_bytes(f.read(4), byteorder="little"), int.from_bytes(f.read(4), byteorder="little"), int.from_bytes(f.read(2), byteorder="little"), int.from_bytes(f.read(2), byteorder="little")]
         fmtChunk = Chunk(id, size, data)
         fmtChunk.print()
@@ -44,24 +47,22 @@ while 1:
         infoChunk = Chunk(id, size, data)
         infoChunk.print()
     elif id == "data":
-        # for i in range(int(size / 2)):
-        #     data.append(int.from_bytes(f.read(4), byteorder="little"))
-        dataChunk = Chunk(id, size, 0) # TODO: wczytać dane do dataChunk.data
-        dataChunk.print()
-        break # tymczasowe wyjście z pętli, bo UnicodeDecodeError
+        for i in range(int(size / sample_len)):
+            data.append(int.from_bytes(f.read(sample_len), byteorder="little", signed=True))
+        dataChunk = Chunk(id, size, data)
+        # dataChunk.print()
 
-sample_len = int(fmtChunk.size / 8)
 samples = []
-data = f.read(-1)
 
 pos = 0
-while pos < len(data):
-    samples.append(int.from_bytes(data[pos:pos+sample_len], byteorder="little", signed=True))
-    pos = pos + sample_len
+while pos < len(dataChunk.data):
+    samples.append(dataChunk.data[pos])
+    pos += 1
 
 plt.plot(list(range(0, len(samples), 1))[0:110], samples[0:110])
 plt.show()
 
+# arr = []
 # for i in range(5):
 #     arr.append(f.read(4))
 # for i in range(2):
