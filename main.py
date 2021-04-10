@@ -66,29 +66,83 @@ class FmtChunk(Chunk):
     pass
 
 
-class LISTChunk(Chunk):
+class ISFTChunk(Chunk):
     class Contents:
-        INFO: Chunk
+        Lavf: str
+        number: str
+
+        def __init__(self, data: list):
+            self.Lavf = data[0]
+            self.number = data[1]
+
+        def __repr__(self):
+            return str(self.Lavf) + "\n" + str(self.number)
         pass
 
     data: Contents
+
+    def __init__(self, id: str, size: int, data: list):
+        Chunk.__init__(self=self, id=id, size=size, data=None)
+        id2 = bytes.decode(data[0:4])
+        id3 = bytes.decode(data[4:])
+        self.data = ISFTChunk.Contents([id2, id3])
+
+    def __repr__(self):
+        return Chunk.__repr__(self) + "\n" + str(self.data)
+    pass
 
 
 class INFOChunk(Chunk):
     class Contents:
-        ISFT: Chunk
-        pass
+        ISFT: ISFTChunk
+
+        def __init__(self, data: ISFTChunk):
+            self.ISFT = data
+
+        def __repr__(self):
+            return str(self.ISFT)
 
     data: Contents
 
+    def __init__(self, id: str, size: int, data: list):
+        Chunk.__init__(self=self, id=id, size=size, data=None)
+        subid = bytes.decode(data[0:4])
+        if len(subid):
+            sizesubid = int.from_bytes(data[4:8], byteorder="little")
+        if subid == "ISFT":
+            data = data[8:]
+        isftChunk = ISFTChunk(subid, sizesubid, data)
+        self.data = INFOChunk.Contents(isftChunk)
 
-class ISFTChunk(Chunk):
+    def __repr__(self):
+        return Chunk.__repr__(self) + "\n" + str(self.data)
+    pass
+
+
+class LISTChunk(Chunk):
     class Contents:
-        Lavf: str
-        qwe: str
+        INFO: INFOChunk
+
+        def __init__(self, data: INFOChunk):
+            self.INFO = data
+
+        def __repr__(self):
+            return str(self.INFO)
         pass
 
     data: Contents
+
+    def __init__(self, id: str, size: int, data: list):
+        Chunk.__init__(self=self, id=id, size=size, data=None)
+        subid = bytes.decode(data[0][0:4])
+        if subid == "INFO":
+            data = data[0][4:]
+            infoChunk = INFOChunk(subid, size-4, data)
+        self.data = LISTChunk.Contents(infoChunk)
+
+    def __repr__(self):
+        return Chunk.__repr__(self) + "\n" + str(self.data)
+    pass
 
 
 class DataChunk(Chunk):
@@ -108,7 +162,7 @@ class DataChunk(Chunk):
         self.data = DataChunk.Contents(data)
 
     def __repr__(self):
-        return Chunk.__repr__(self) + "\n" + str(self.data)
+        return Chunk.__repr__(self) + "\n"# + str(self.data)
     pass
 
 
@@ -124,7 +178,7 @@ class WavFile:
 
 
 sample_len = 0
-f = open(file="mbi04jeden.wav", mode="rb")
+f = open(file="Gate of Steiner.wav", mode="rb")
 while 1:
     id = bytes.decode(f.read(4))
     if len(id):
@@ -145,25 +199,9 @@ while 1:
         fmtChunk = FmtChunk(id, size, data)
         print(fmtChunk)
     elif id == "LIST":
-        sub_id = bytes.decode(f.read(4))
-        print(sub_id)
-        if sub_id == "INFO":
-            subsub_id = bytes.decode(f.read(4))
-            print(subsub_id)
-            if len(subsub_id):
-                size_subsub_id = int.from_bytes(f.read(4), byteorder="little")
-                print(size_subsub_id)
-            else:
-                break
-            if subsub_id == "ISFT":
-                id2 = bytes.decode(f.read(4))
-                id3 = bytes.decode(f.read(10))
-                # id4 = int.from_bytes(f.read(2), byteorder="little")
-                print(id2, id3)
-        # for i in range(int((size-8)/2)):
-        #     data.append(int.from_bytes(f.read(4), byteorder="little"))
-        listChunk = Chunk(id, size, 0)
-        listChunk.print()
+        data = [f.read(size)]
+        listChunk = LISTChunk(id, size, data)
+        print(listChunk)
     elif id == "data":
         # if fmtChunk is None:
         # domyślnie unrecognized lub próba konwersji do 2-bajtowego inta
