@@ -1,4 +1,6 @@
 from matplotlib import pyplot as plt
+import scipy
+import struct
 
 
 class Chunk:
@@ -199,7 +201,7 @@ class WavFile:
 
 
 sample_len = 0
-f = open(file="sine440.wav", mode="rb")
+f = open(file="data/sine440-mulaw.wav", mode="rb")
 while 1:
     id = bytes.decode(f.read(4))
     if len(id):
@@ -213,7 +215,6 @@ while 1:
         riffChunk = RIFFHeader(id, size, data)
         print(riffChunk)
     elif id == "fmt ":
-        sample_len = int(size / 8)
         data = [int.from_bytes(f.read(2), byteorder="little"), int.from_bytes(f.read(2), byteorder="little"),
                 int.from_bytes(f.read(4), byteorder="little"), int.from_bytes(f.read(4), byteorder="little"),
                 int.from_bytes(f.read(2), byteorder="little"), int.from_bytes(f.read(2), byteorder="little")]
@@ -227,13 +228,33 @@ while 1:
         listChunk = LISTChunk(id, size, data[0])
         print(listChunk)
     elif id == "data":
-        # if fmtChunk is None:
-        # domyślnie unrecognized lub próba konwersji do 2-bajtowego inta
-        # else:
-        # obsługa w zależności od fmtChunk.data.audio_format; 1 to 2-bajtowy int
-        for i in range(int(size / sample_len)):
-            data.append(int.from_bytes(f.read(sample_len), byteorder="little", signed=True))
-        data.append(int.from_bytes(f.read(2), byteorder="little", signed=True))  # ważne jeżeli data nie jest na końcu
+        sample_len = int(fmtChunk.data.bits_per_sample / 8)
+        if fmtChunk.data.audio_format == 1:
+            for i in range(int(size / sample_len)):
+                if sample_len == 1:
+                    data.append(int.from_bytes(f.read(sample_len), byteorder="little", signed=False)) # 8-bit unsigned
+                else:
+                    data.append(int.from_bytes(f.read(sample_len), byteorder="little", signed=True))
+            data.append(int.from_bytes(f.read(2), byteorder="little", signed=True))  # ważne jeżeli data nie jest na końcu
+        elif fmtChunk.data.audio_format == 3:
+            for i in range(int(size / sample_len)):
+                if sample_len == 4:
+                    data.append(struct.unpack("f", f.read(sample_len)))
+                else:
+                    data.append(struct.unpack("d", f.read(sample_len)))  # double, czyli przypadek 64-bit floata
+            f.read(2)  # przesunie iterator o dwa miejsca tak jak wyżej
+        elif fmtChunk.data.audio_format == 6:  #TODO dekodowanie formatu alaw
+            for i in range(int(size / sample_len)):
+                data.append(int.from_bytes(f.read(sample_len), byteorder="little", signed=False)) # 8-bit unsigned
+            f.read(2)
+        elif fmtChunk.data.audio_format == 7: #TODO dekodowanie formatu mulaw
+            for i in range(int(size / sample_len)):
+                data.append(int.from_bytes(f.read(sample_len), byteorder="little", signed=False)) # 8-bit unsigned
+            f.read(2)
+        elif fmtChunk.data.audio_format == 65534: #  Extensible
+            pass
+        else:
+            print("Niewlasciwy format")
         dataChunk = DataChunk(id, size, data)
         print(dataChunk)
     else: # TODO factchunk do przerobienia
