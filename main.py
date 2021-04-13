@@ -1,6 +1,7 @@
 from matplotlib import pyplot as plt
 import scipy
 import struct
+import audioop
 
 
 class Chunk:
@@ -201,7 +202,7 @@ class WavFile:
 
 
 sample_len = 0
-f = open(file="data/sine440-mulaw.wav", mode="rb")
+f = open(file="data/sine440-alaw.wav", mode="rb")
 while 1:
     id = bytes.decode(f.read(4))
     if len(id):
@@ -243,15 +244,17 @@ while 1:
                 else:
                     data.append(struct.unpack("d", f.read(sample_len)))  # double, czyli przypadek 64-bit floata
             f.read(2)  # przesunie iterator o dwa miejsca tak jak wyżej
-        elif fmtChunk.data.audio_format == 6:  #TODO dekodowanie formatu alaw
+        elif fmtChunk.data.audio_format == 6:
             for i in range(int(size / sample_len)):
-                data.append(int.from_bytes(f.read(sample_len), byteorder="little", signed=False)) # 8-bit unsigned
+                data.append(int.from_bytes(audioop.alaw2lin(f.read(sample_len), sample_len),
+                                           byteorder="little", signed=True))
             f.read(2)
-        elif fmtChunk.data.audio_format == 7: #TODO dekodowanie formatu mulaw
+        elif fmtChunk.data.audio_format == 7:
             for i in range(int(size / sample_len)):
-                data.append(int.from_bytes(f.read(sample_len), byteorder="little", signed=False)) # 8-bit unsigned
+                data.append(int.from_bytes(audioop.ulaw2lin(f.read(sample_len), sample_len),
+                                           byteorder="little", signed=True))
             f.read(2)
-        elif fmtChunk.data.audio_format == 65534: #  Extensible
+        elif fmtChunk.data.audio_format == 65534:  # Extensible
             pass
         else:
             print("Niewlasciwy format")
