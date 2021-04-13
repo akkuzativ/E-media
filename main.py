@@ -1,7 +1,8 @@
 from matplotlib import pyplot as plt
-import scipy
+from matplotlib import mlab
 import struct
 import audioop
+import numpy as np
 
 
 class Chunk:
@@ -201,8 +202,9 @@ class WavFile:
     pass
 
 
+size = 0
 sample_len = 0
-f = open(file="data/sine440-alaw.wav", mode="rb")
+f = open(file="data/sine440.wav", mode="rb")
 while 1:
     id = bytes.decode(f.read(4))
     if len(id):
@@ -235,14 +237,17 @@ while 1:
                 if sample_len == 1:
                     data.append(int.from_bytes(f.read(sample_len), byteorder="little", signed=False)) # 8-bit unsigned
                 else:
-                    data.append(int.from_bytes(f.read(sample_len), byteorder="little", signed=True))
+                    if i % fmtChunk.data.num_channels == 0:
+                        data.append(int.from_bytes(f.read(sample_len), byteorder="little", signed=True))
+                    else:
+                        f.read(sample_len)
             data.append(int.from_bytes(f.read(2), byteorder="little", signed=True))  # ważne jeżeli data nie jest na końcu
         elif fmtChunk.data.audio_format == 3:
             for i in range(int(size / sample_len)):
                 if sample_len == 4:
-                    data.append(struct.unpack("f", f.read(sample_len)))
+                    data.append(float(struct.unpack("f", f.read(sample_len))[0]))
                 else:
-                    data.append(struct.unpack("d", f.read(sample_len)))  # double, czyli przypadek 64-bit floata
+                    data.append(float(struct.unpack("d", f.read(sample_len))[0]))  # double, czyli przypadek 64-bit floata
             f.read(2)  # przesunie iterator o dwa miejsca tak jak wyżej
         elif fmtChunk.data.audio_format == 6:
             for i in range(int(size / sample_len)):
@@ -268,10 +273,12 @@ while 1:
 
 # File = WavFile(riffChunk, fmtChunk, dataChunk, listChunk)
 
-samples = []
-pos = 0
-while pos < len(dataChunk.data.samples):
-    samples.append(dataChunk.data.samples[pos])
-    pos += 1
-plt.plot(list(range(0, len(samples), 1))[0:110], samples[0:110])
-plt.show()
+samples = dataChunk.data.samples
+plt.plot(range(0, 100, 1), samples[0:100])
+plt.show(block=True)
+np.seterr(divide='ignore')  #TODO przy logarytmie wewnatrz tworzenia spektrogramu pojawia sie warning, tymczasowe
+plt.specgram(x=samples, Fs=fmtChunk.data.sample_rate, scale="dB")
+plt.yscale("symlog")
+plt.ylabel("Frequency [Hz]")
+plt.xlabel("Time [s]")
+plt.show(block=True)
