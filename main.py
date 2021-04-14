@@ -1,5 +1,4 @@
 from matplotlib import pyplot as plt
-from matplotlib import mlab
 import struct
 import audioop
 import numpy as np
@@ -204,7 +203,7 @@ class WavFile:
 
 size = 0
 sample_len = 0
-f = open(file="data/sine440.wav", mode="rb")
+f = open(file="data/sine440-16-stereo.wav", mode="rb")
 while 1:
     id = bytes.decode(f.read(4))
     if len(id):
@@ -232,37 +231,74 @@ while 1:
         print(listChunk)
     elif id == "data":
         sample_len = int(fmtChunk.data.bits_per_sample / 8)
-        if fmtChunk.data.audio_format == 1:
-            for i in range(int(size / sample_len)):
+
+        # wersja klasyczna
+        def sample_conversion_native(sample):
+            if fmtChunk.data.audio_format == 1:
                 if sample_len == 1:
-                    data.append(int.from_bytes(f.read(sample_len), byteorder="little", signed=False)) # 8-bit unsigned
+                    return int.from_bytes(sample, byteorder="little", signed=False)
                 else:
-                    if i % fmtChunk.data.num_channels == 0:
-                        data.append(int.from_bytes(f.read(sample_len), byteorder="little", signed=True))
-                    else:
-                        f.read(sample_len)
-            data.append(int.from_bytes(f.read(2), byteorder="little", signed=True))  # ważne jeżeli data nie jest na końcu
-        elif fmtChunk.data.audio_format == 3:
-            for i in range(int(size / sample_len)):
+                    return int.from_bytes(sample, byteorder="little", signed=True)
+            elif fmtChunk.data.audio_format == 3:
                 if sample_len == 4:
-                    data.append(float(struct.unpack("f", f.read(sample_len))[0]))
+                    return struct.unpack("f", sample)[0]
                 else:
-                    data.append(float(struct.unpack("d", f.read(sample_len))[0]))  # double, czyli przypadek 64-bit floata
-            f.read(2)  # przesunie iterator o dwa miejsca tak jak wyżej
-        elif fmtChunk.data.audio_format == 6:
-            for i in range(int(size / sample_len)):
-                data.append(int.from_bytes(audioop.alaw2lin(f.read(sample_len), sample_len),
-                                           byteorder="little", signed=True))
-            f.read(2)
-        elif fmtChunk.data.audio_format == 7:
-            for i in range(int(size / sample_len)):
-                data.append(int.from_bytes(audioop.ulaw2lin(f.read(sample_len), sample_len),
-                                           byteorder="little", signed=True))
-            f.read(2)
-        elif fmtChunk.data.audio_format == 65534:  # Extensible
-            pass
+                    return struct.unpack("d", sample)[0]
+            elif fmtChunk.data.audio_format == 6:
+                return int.from_bytes(audioop.alaw2lin(sample, sample_len), byteorder="little", signed=True)
+            elif fmtChunk.data.audio_format == 7:
+                return int.from_bytes(audioop.ulaw2lin(sample, sample_len), byteorder="little", signed=True)
+            elif fmtChunk.data.audio_format == 65534:
+                pass
+
+
+        # Wersja przyspieszona wykorzystująca numpy
+        def sample_conversion_fast(samples: bytes):
+            if fmtChunk.data.audio_format == 1:
+                if sample_len == 1:
+                    return np.frombuffer(samples, "uint8")
+                else:
+                    return np.frombuffer(samples, "int"+str(sample_len*8))
+            elif fmtChunk.data.audio_format == 3:
+                if sample_len == 4:
+                    return np.frombuffer(samples, "float32")
+                else:
+                    return np.frombuffer(samples, "float64")
+            elif fmtChunk.data.audio_format == 6:
+                ret = []
+                for i in range(int(size / sample_len)):
+                    ret.append(int.from_bytes(audioop.alaw2lin(
+                        samples[i * sample_len:i * sample_len + sample_len], sample_len),
+                        byteorder="little", signed=True))
+                return np.array(ret)
+            elif fmtChunk.data.audio_format == 7:
+                ret = []
+                for i in range(int(size / sample_len)):
+                    ret.append(int.from_bytes(audioop.ulaw2lin(
+                        samples[i * sample_len:i * sample_len + sample_len], sample_len),
+                        byteorder="little", signed=True))
+                return np.array(ret)
+            elif fmtChunk.data.audio_format == 65534:
+                pass
+
+        raw_samples = f.read(size)
+        samples = []
+
+        # wykorzystanie klasycznego sposobu wczytywania - iteracje w pętli
+        for i in range(int(size/sample_len)):
+            samples.append(sample_conversion_native(raw_samples[i*sample_len:i*sample_len+sample_len]))
+
+        # wykorzystanie przyspieszonego wczytywania - zwraca od razu array sampli
+        # data = sample_conversion_fast(raw_samples)
+
+        #TODO zdecydować się na sposób wczytywania
+        channels = []
+        if fmtChunk.data.num_channels > 1:
+            for c in range(fmtChunk.data.num_channels):
+                channels.append(samples[c::fmtChunk.data.num_channels])
+            data = channels
         else:
-            print("Niewlasciwy format")
+            data = channels.append(samples)
         dataChunk = DataChunk(id, size, data)
         print(dataChunk)
     else: # TODO factchunk do przerobienia
@@ -275,11 +311,12 @@ while 1:
 
 samples = dataChunk.data.samples
 #TODO downsampling danych przy rysowaniu wykresów dla usprawnienia obliczenia i czasu rysowania
-plt.plot(range(0, 100, 1), samples[0:100])
+#plt.plot(range(0, 100, 1), samples[0:100])
+plt.plot(range(0, len(samples[0])), samples[0])
 plt.show(block=True)
-np.seterr(divide='ignore')  #TODO przy logarytmie wewnatrz tworzenia spektrogramu pojawia sie warning, tymczasowe
-plt.specgram(x=samples, Fs=fmtChunk.data.sample_rate, scale="dB")
-plt.yscale("symlog")
-plt.ylabel("Frequency [Hz]")
-plt.xlabel("Time [s]")
-plt.show(block=True)
+#np.seterr(divide='ignore')  #TODO przy logarytmie wewnatrz tworzenia spektrogramu pojawia sie warning, tymczasowe
+#plt.specgram(x=samples, Fs=fmtChunk.data.sample_rate, scale="dB")
+#plt.yscale("symlog")
+#plt.ylabel("Frequency [Hz]")
+#plt.xlabel("Time [s]")
+#plt.show(block=True)
