@@ -274,6 +274,7 @@ while 1:
 # File = WavFile(riffChunk, fmtChunk, dataChunk, listChunk)
 
 samples = dataChunk.data.samples
+#TODO downsampling danych przy rysowaniu wykresów dla usprawnienia obliczenia i czasu rysowania
 plt.plot(range(0, 100, 1), samples[0:100])
 plt.show(block=True)
 np.seterr(divide='ignore')  #TODO przy logarytmie wewnatrz tworzenia spektrogramu pojawia sie warning, tymczasowe
