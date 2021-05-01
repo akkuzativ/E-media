@@ -11,7 +11,7 @@ class Chunk:
         self.data = data
 
     def __repr__(self):
-        return str(self.id) + "\n" + str(self.size)# + "\n" + str(self.data)
+        return str(self.id) + " - " + str(self.size)# + "\n" + str(self.data)
     pass
 
 
@@ -60,12 +60,12 @@ class FmtChunk(Chunk):
 
         def __repr__(self):
             if data.index(data[-1]) > 5:
-                return str(self.audio_format) + "\n" + str(self.num_channels) + "\n" + str(self.sample_rate) +\
-                       "\n" + str(self.byte_rate) + "\n" + str(self.block_align) + "\n" + str(self.bits_per_sample) +\
-                       "\n" + str(self.num_extra_format_bytes) + "\n" + str(self.extra_format_bytes)
+                return str(self.audio_format) + " - " + str(self.num_channels) + " - " + str(self.sample_rate) +\
+                       " - " + str(self.byte_rate) + " - " + str(self.block_align) + " - " + str(self.bits_per_sample) +\
+                       " - " + str(self.num_extra_format_bytes) + " - " + str(self.extra_format_bytes)
             else:
-                return str(self.audio_format) + "\n" + str(self.num_channels) + "\n" + str(self.sample_rate) +\
-                       "\n" + str(self.byte_rate) + "\n" + str(self.block_align) + "\n" + str(self.bits_per_sample)
+                return str(self.audio_format) + " - " + str(self.num_channels) + " - " + str(self.sample_rate) +\
+                       " - " + str(self.byte_rate) + " - " + str(self.block_align) + " - " + str(self.bits_per_sample)
         pass
 
     data: Contents
@@ -97,21 +97,38 @@ class INFOsubChunk(Chunk):
         self.data = INFOsubChunk.Contents(bytes.decode(data[:]))
 
     def __repr__(self):
-        return Chunk.__repr__(self) + "\n" + str(self.data)
+        return Chunk.__repr__(self) + " - " + str(self.data)
     pass
 
 
 class INFOChunk(Chunk):
     class Contents: #TODO do rozszerzenia o pozostałe
-        ISFT: INFOsubChunk
-        INAM: INFOsubChunk
-
-        # def __init__(self, data: list):  # chyba bezużyteczne
-        #     self.ISFT = data[0]
-        #     self.INAM = data[1]
+        IART: INFOsubChunk #wykonawca
+        INAM: INFOsubChunk #tytuł utworu
+        IPRD: INFOsubChunk #tytuł albumu
+        ICRD: INFOsubChunk #data wydania
+        IGNR: INFOsubChunk # gatunek
+        ICMT: INFOsubChunk #komentarze
+        ITRK: INFOsubChunk #komentarze
+        ISFT: INFOsubChunk #oprogramowanie
 
         def __repr__(self):
-            return str(self.ISFT)# + "\n" + str(self.INAM)
+            return str(self.IART) + " - " + str(self.INAM) + " - " + str(self.IPRD) + \
+                   " - " + str(self.ICRD) + " - " + str(self.IGNR) + " - " + str(self.ICMT) + " - " + str(self.ITRK)
+
+            # output=None
+            # var = ""
+            # for field in range(7):
+            #     if dir(self)[field] is not None:
+            #         var = "str(self."+ dir(self)[field]+")"
+            #         print(var)
+            #         # print(output)
+            #         output += str(globals()[var])
+            #     if field <6:
+            #         var+=" + \" - \" +"
+            # exec(var)
+            # print(output)
+            # return # + " - " + str(self.ICMT)
 
     data: Contents
 
@@ -119,13 +136,11 @@ class INFOChunk(Chunk):
         Chunk.__init__(self=self, id=id, size=size, data=None)
         self.data = INFOChunk.Contents()
         start = 0
-        while  start < data.index(data[-1]):
+        while start < len(data)-1:
             subid = bytes.decode(data[start:start+4])
             if len(subid):
                 sizesubid = int.from_bytes(data[start+4:start+8], byteorder="little")
-            if subid == "ISFT" or subid == "INAM": #TODO do rozszerzenia o pozostałe
-                # self.data.ISFT=INFOsubChunk(subid, sizesubid, data[8:sizesubid+8])
-                # locals()['self.data.'+subid] = INFOsubChunk(subid, sizesubid, data[8:sizesubid+8])
+            if subid in self.Contents.__annotations__:
                 exec("%s=%s" % ('self.data.'+subid, "INFOsubChunk(subid, sizesubid, data[start+8:start+sizesubid+8])"))
             else:
                 unrecognizedChunk = Chunk(subid, sizesubid, data[start + 8:start + sizesubid + 8])  # TODO niezapisywany
@@ -140,7 +155,7 @@ class INFOChunk(Chunk):
 class LISTChunk(Chunk):
     class Contents:
         INFO: INFOChunk
-        labl: None #TODO jak wyżej
+        labl: None
 
         # def __init__(self, data: INFOChunk):
         #     self.INFO = data
@@ -186,9 +201,84 @@ class DataChunk(Chunk):
         self.data = DataChunk.Contents(data)
 
     def __repr__(self):
-        return Chunk.__repr__(self) + "\n"# + str(self.data)
+        return Chunk.__repr__(self) + "\n" + str(self.data)
     pass
 
+class ID3Chunk(Chunk):
+    class Contents: #TODO do rozszerzenia o pozostałe
+        TPE1: INFOsubChunk #wykonawca
+        COMM: INFOsubChunk #tytuł utworu
+        TIT2: INFOsubChunk #tytuł albumu
+        TDRC: INFOsubChunk # gatunek
+        TALB: INFOsubChunk #komentarze
+        TRCK: INFOsubChunk #oprogramowanie
+        TCON: INFOsubChunk #oprogramowanie
+
+
+        def __repr__(self):
+            return str(self.TPE1) + "\n" + str(self.TIT2) + "\n" + str(self.COMM) + \
+                   "\n" + str(self.TALB) #+ "\n" + str(self.TDRC) + "\n" + str(self.TRCK) \
+                   # + "\n" + str(self.TCON)
+
+    data: Contents
+
+    def __init__(self, id: str, size: int, data: list):
+        Chunk.__init__(self=self, id=id, size=size, data=None)
+        self.data = ID3Chunk.Contents()
+        start = 0
+        while len(data) > 45:
+            subid = bytes.decode(data[start:start+4])
+            # if len(subid):
+                # sizesubid = int.from_bytes(data[start+4:start+8], byteorder="little")
+            if subid in self.Contents.__annotations__:
+                for byte in data[5:-3]:
+                    # print(bytes.decode(data[data.index(byte)+5:data.index(byte)+9]))
+                    if bytes.decode(data[data.index(byte)+5:data.index(byte)+9]) in self.Contents.__annotations__:
+                        sizesubid=data.index(byte)+5-4 # TODO nie wszystkie chunki są rozpoznawane
+                        # print(bytes.decode(data[data.index(byte)+5:data.index(byte)+9]))
+                        # print(data.index(byte)+5)
+                        exec("%s=%s" % ('self.data.' + subid, "INFOsubChunk(subid,data.index(byte)+5-4, data[start+4:start+data.index(byte)+5])"))
+                        data = data[data.index(byte) + 5:]
+                        break
+                # print(data)
+            else:
+                unrecognizedChunk = Chunk(subid, size-4, data[start+4:start+size])  # TODO niezapisywany
+                print(unrecognizedChunk)
+
+    def __repr__(self):
+        return Chunk.__repr__(self) + "\n" + str(self.data)
+    pass
+
+
+class id3Chunk(Chunk):
+    class Contents:
+        ID3: ID3Chunk
+        def __repr__(self):
+            return str(self.ID3)
+        pass
+
+    data: Contents
+
+    def __init__(self, id: str, size: int, data: [bytes, int]):
+        Chunk.__init__(self=self, id=id, size=size, data=None)
+        self.data = id3Chunk.Contents()
+        start = 0
+        while start < data.index(data[-1]):
+            subid = bytes.decode(data[start:start+3])
+            if len(subid):
+                subsize = int.from_bytes(data[start+3:start+10], byteorder="little")
+                # print(subsize)
+            if subid == "ID3":
+                # print(data)
+                self.data.ID3=ID3Chunk(subid, size - 10, data[start+10:start+size])
+            else:
+                unrecognizedChunk = Chunk(subid, size-10, data[start+10:start+size])  # TODO niezapisywany
+                print(unrecognizedChunk)
+            start = start + size
+
+    def __repr__(self):
+        return Chunk.__repr__(self) + "\n" + str(self.data)
+    pass
 
 class WavFile:
     def __init__(self, a: RIFFHeader = None, b: FmtChunk = None, c: DataChunk = None, d: LISTChunk = None, e: list = None):
@@ -200,10 +290,9 @@ class WavFile:
 
     pass
 
-
 size = 0
 sample_len = 0
-f = open(file="data/sine440-16-stereo.wav", mode="rb")
+f = open(file="data/sine440-list.wav", mode="rb")
 while 1:
     id = bytes.decode(f.read(4))
     if len(id):
@@ -229,6 +318,10 @@ while 1:
         data = [f.read(size)]
         listChunk = LISTChunk(id, size, data[0])
         print(listChunk)
+    elif id == "id3 ":
+        data = [f.read(size)]
+        id3Chunk = id3Chunk(id, size, data[0])
+        print(id3Chunk)
     elif id == "data":
         sample_len = int(fmtChunk.data.bits_per_sample / 8)
 
