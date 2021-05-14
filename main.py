@@ -59,13 +59,11 @@ class FmtChunk(Chunk):
                 self.extra_format_bytes = data[7]
 
         def __repr__(self):
-            if data.index(data[-1]) > 5:
-                return str(self.audio_format) + " - " + str(self.num_channels) + " - " + str(self.sample_rate) +\
-                       " - " + str(self.byte_rate) + " - " + str(self.block_align) + " - " + str(self.bits_per_sample) +\
-                       " - " + str(self.num_extra_format_bytes) + " - " + str(self.extra_format_bytes)
-            else:
-                return str(self.audio_format) + " - " + str(self.num_channels) + " - " + str(self.sample_rate) +\
+            list = str(self.audio_format) + " - " + str(self.num_channels) + " - " + str(self.sample_rate) +\
                        " - " + str(self.byte_rate) + " - " + str(self.block_align) + " - " + str(self.bits_per_sample)
+            if data.index(data[-1]) > 5:
+                list += " - " + str(self.num_extra_format_bytes) + " - " + str(self.extra_format_bytes)
+            return list
         pass
 
     data: Contents
@@ -97,12 +95,12 @@ class INFOsubChunk(Chunk):
         self.data = INFOsubChunk.Contents(bytes.decode(data[:]))
 
     def __repr__(self):
-        return Chunk.__repr__(self) + " - " + str(self.data)
+        return Chunk.__repr__(self) + " - " + str(self.data) + " - "
     pass
 
 
 class INFOChunk(Chunk):
-    class Contents: #TODO do rozszerzenia o pozostałe
+    class Contents:
         IART: INFOsubChunk #wykonawca
         INAM: INFOsubChunk #tytuł utworu
         IPRD: INFOsubChunk #tytuł albumu
@@ -111,24 +109,46 @@ class INFOChunk(Chunk):
         ICMT: INFOsubChunk #komentarze
         ITRK: INFOsubChunk #komentarze
         ISFT: INFOsubChunk #oprogramowanie
+        unrecognized: INFOsubChunk
 
         def __repr__(self):
-            return str(self.IART) + " - " + str(self.INAM) + " - " + str(self.IPRD) + \
-                   " - " + str(self.ICRD) + " - " + str(self.IGNR) + " - " + str(self.ICMT) + " - " + str(self.ITRK)
-
-            # output=None
-            # var = ""
-            # for field in range(7):
-            #     if dir(self)[field] is not None:
-            #         var = "str(self."+ dir(self)[field]+")"
-            #         print(var)
-            #         # print(output)
-            #         output += str(globals()[var])
-            #     if field <6:
-            #         var+=" + \" - \" +"
-            # exec(var)
-            # print(output)
-            # return # + " - " + str(self.ICMT)
+            list = ""
+            try:
+                list += str(self.IART)
+            except AttributeError:
+                pass
+            try:
+                list += str(self.INAM)
+            except AttributeError:
+                pass
+            try:
+                list += str(self.IPRD)
+            except AttributeError:
+                pass
+            try:
+                list += str(self.ICRD)
+            except AttributeError:
+                pass
+            try:
+                list += str(self.IGNR)
+            except AttributeError:
+                pass
+            try:
+                list += str(self.ICMT)
+            except AttributeError:
+                pass
+            try:
+                list += str(self.ITRK)
+            except AttributeError:
+                pass
+            try:
+                list += str(self.ISFT)
+            except AttributeError:
+                pass
+            try:
+                list += str(self.unrecognized)
+            finally:
+                return list
 
     data: Contents
 
@@ -143,25 +163,126 @@ class INFOChunk(Chunk):
             if subid in self.Contents.__annotations__:
                 exec("%s=%s" % ('self.data.'+subid, "INFOsubChunk(subid, sizesubid, data[start+8:start+sizesubid+8])"))
             else:
-                unrecognizedChunk = Chunk(subid, sizesubid, data[start + 8:start + sizesubid + 8])  # TODO niezapisywany
-                print(unrecognizedChunk)
-            start = start+sizesubid+8
+                # unrecognizedChunk = Chunk(subid, sizesubid, data[start + 8:start + sizesubid + 8])
+                self.data.unrecognized = INFOsubChunk(subid, sizesubid, data[start + 8:start + sizesubid + 8])
+                # print(unrecognizedChunk)
+            start = start + sizesubid + 8
+
+        if len(data) > 4 + start:
+            self.data.unrecognized = INFOsubChunk(bytes.decode(data[start:start + 4]), len(data)-8, data[start + 4:])
 
     def __repr__(self):
         return Chunk.__repr__(self) + "\n" + str(self.data)
     pass
 
+class ADTLsubChunk1(Chunk):
+    class Contents:
+        cueID: str
+        sample: str
+        purpouse: str
+        country: str
+        lang: str
+        dial: str
+        code: str
+        data: str
+
+        def __init__(self, cueID: str, data: str, sample: str = None, purpouse: str = None, country: str = None, lang: str = None, dial: str = None, code: str = None):
+            self.cueID = cueID
+            self.sample = sample
+            self.purpouse = purpouse
+            self.country = country
+            self.lang = lang
+            self.dial = dial
+            self.code = code
+            self.data = data
+
+        def __repr__(self):
+            return str(self.cueID) + " - " + str(self.data)
+        pass
+
+    data: Contents
+
+    def __init__(self, id: str, size: int, cueID: str, data: list):
+        Chunk.__init__(self=self, id=id, size=size, data=None)
+        if id != "ltxt":
+            self.data = ADTLsubChunk1.Contents(cueID, bytes.decode(data[:]))
+        else:
+            self.data = ADTLsubChunk1.Contents(cueID, bytes.decode(data[16:]), bytes.decode(data[:4]),
+                                               bytes.decode(data[4:8]), bytes.decode(data[8:10]),
+                                               bytes.decode(data[10:12]), bytes.decode(data[12:14]),
+                                               bytes.decode(data[14:16]))
+
+    def __repr__(self):
+        return Chunk.__repr__(self) + " - " + str(self.data)
+    pass
+
+class ADTLChunk(Chunk):
+    class Contents:
+        labl: ADTLsubChunk1
+        note: ADTLsubChunk1
+        ltxt: ADTLsubChunk1
+        unrecognized: ADTLsubChunk1
+
+        def __repr__(self):
+            list = ""
+            try:
+                list += str(self.labl)
+            except AttributeError:
+                pass
+            try:
+                list += str(self.note)
+            except AttributeError:
+                pass
+            try:
+                list += str(self.ltxt)
+            except AttributeError:
+                pass
+            try:
+                list += str(self.unrecognized)
+            finally:
+                return list
+
+    data: Contents
+
+    def __init__(self, id: str, size: int, data: list):
+        Chunk.__init__(self=self, id=id, size=size, data=None)
+        self.data = ADTLChunk.Contents()
+        start = 0
+        while start < len(data)-1:
+            subid = bytes.decode(data[start:start+4])
+            if len(subid):
+                sizesubid = int.from_bytes(data[start+4:start+8], byteorder="little")
+                cueID = bytes.decode(data[start + 8:start + 12])
+            if subid in self.Contents.__annotations__:
+                exec("%s=%s" % ('self.data.'+subid, "ADTLsubChunk1(subid, sizesubid, cueID, data[start+12:start+sizesubid+12])"))
+            else:
+                # unrecognizedChunk = Chunk(subid, sizesubid, cueID, data[start+12:start+sizesubid+12])
+                self.data.unrecognized = ADTLsubChunk1(subid, sizesubid, cueID, data[start+12:start+sizesubid+12])
+                # print(unrecognizedChunk)
+            start = start + sizesubid + 8
+
+        if len(data) > 4 + start:
+            self.data.unrecognized = ADTLsubChunk1(bytes.decode(data[start:start + 4]), len(data)-8, "", data[start + 4:])
+
+    def __repr__(self):
+        return Chunk.__repr__(self) + "\n" + str(self.data)
+    pass
 
 class LISTChunk(Chunk):
     class Contents:
         INFO: INFOChunk
-        labl: None
-
-        # def __init__(self, data: INFOChunk):
-        #     self.INFO = data
+        adtl: ADTLChunk
 
         def __repr__(self):
-            return str(self.INFO)
+            list = ""
+            try:
+                list += str(self.INFO)
+            except AttributeError:
+                pass
+            try:
+                list += str(self.adtl)
+            finally:
+                return list
         pass
 
     data: Contents
@@ -170,13 +291,15 @@ class LISTChunk(Chunk):
         Chunk.__init__(self=self, id=id, size=size, data=None)
         self.data = LISTChunk.Contents()
         start = 0
-        while  start < data.index(data[-1]):
+        while start < data.index(data[-1]):
             subid = bytes.decode(data[start:start+4])
             if subid == "INFO":
-                self.data.INFO=INFOChunk(subid, size-4, data[start+4:start+size])
+                self.data.INFO=INFOChunk(subid, len(data[start+4:start+size]), data[start+4:start+size])
+            elif subid == "adtl":
+                self.data.adtl = ADTLChunk(subid, len(data[start + 4:start + size]), data[start + 4:start + size])
             else:
-                unrecognizedChunk = Chunk(subid, size-4, data[start+4:start+size])  # TODO niezapisywany
-                print(unrecognizedChunk)
+                unrecognizedChunk = Chunk(subid, len(data[start+4:start+size]), data[start+4:start+size])
+                print(unrecognizedChunk)     # niezapisywany bo nie ma takiego i to na 100% błąd
             start = start + size
 
     def __repr__(self):
@@ -205,21 +328,50 @@ class DataChunk(Chunk):
     pass
 
 class ID3Chunk(Chunk):
-    class Contents: #TODO do rozszerzenia o pozostałe
-        TPE1: INFOsubChunk #wykonawca
-        COMM: INFOsubChunk #tytuł utworu
-        TIT2: INFOsubChunk #tytuł albumu
-        TDRC: INFOsubChunk # gatunek
-        TALB: INFOsubChunk #komentarze
-        TRCK: INFOsubChunk #oprogramowanie
-        TCON: INFOsubChunk #oprogramowanie
-
+    class Contents:
+        TPE1: INFOsubChunk  #wykonawca
+        COMM: INFOsubChunk  #tytuł utworu
+        TIT2: INFOsubChunk  #tytuł albumu
+        TDRC: INFOsubChunk  # gatunek
+        TALB: INFOsubChunk  #komentarze
+        TRCK: INFOsubChunk  #oprogramowanie
+        TCON: INFOsubChunk  #oprogramowanie
+        unrecognized: INFOsubChunk
 
         def __repr__(self):
-            return str(self.TPE1) + "\n" + str(self.TIT2) + "\n" + str(self.COMM) + \
-                   "\n" + str(self.TALB) #+ "\n" + str(self.TDRC) + "\n" + str(self.TRCK) \
-                   # + "\n" + str(self.TCON)
-
+            list = ""
+            try:
+                list += str(self.TPE1)
+            except AttributeError:
+                pass
+            try:
+                list += str(self.COMM)
+            except AttributeError:
+                pass
+            try:
+                list += str(self.TIT2)
+            except AttributeError:
+                pass
+            try:
+                list += str(self.TDRC)
+            except AttributeError:
+                pass
+            try:
+                list += str(self.TALB)
+            except AttributeError:
+                pass
+            try:
+                list += str(self.TRCK)
+            except AttributeError:
+                pass
+            try:
+                list += str(self.TCON)
+            except AttributeError:
+                pass
+            try:
+                list += str(self.unrecognized)
+            finally:
+                return list
     data: Contents
 
     def __init__(self, id: str, size: int, data: list):
@@ -228,22 +380,19 @@ class ID3Chunk(Chunk):
         start = 0
         while len(data) > 45:
             subid = bytes.decode(data[start:start+4])
-            # if len(subid):
-                # sizesubid = int.from_bytes(data[start+4:start+8], byteorder="little")
             if subid in self.Contents.__annotations__:
-                for byte in data[5:-3]:
+                for byte in data[1:-3]:
                     # print(bytes.decode(data[data.index(byte)+5:data.index(byte)+9]))
                     if bytes.decode(data[data.index(byte)+5:data.index(byte)+9]) in self.Contents.__annotations__:
-                        sizesubid=data.index(byte)+5-4 # TODO nie wszystkie chunki są rozpoznawane
-                        # print(bytes.decode(data[data.index(byte)+5:data.index(byte)+9]))
-                        # print(data.index(byte)+5)
                         exec("%s=%s" % ('self.data.' + subid, "INFOsubChunk(subid,data.index(byte)+5-4, data[start+4:start+data.index(byte)+5])"))
                         data = data[data.index(byte) + 5:]
                         break
-                # print(data)
             else:
-                unrecognizedChunk = Chunk(subid, size-4, data[start+4:start+size])  # TODO niezapisywany
+                unrecognizedChunk = Chunk(subid, size-4, data[start+4:start+size])
                 print(unrecognizedChunk)
+
+        if len(data) > 4 + start:
+            self.data.unrecognized = INFOsubChunk(bytes.decode(data[start:start+4]), len(data)-8, data[start+4:])
 
     def __repr__(self):
         return Chunk.__repr__(self) + "\n" + str(self.data)
@@ -253,6 +402,7 @@ class ID3Chunk(Chunk):
 class id3Chunk(Chunk):
     class Contents:
         ID3: ID3Chunk
+
         def __repr__(self):
             return str(self.ID3)
         pass
@@ -267,13 +417,11 @@ class id3Chunk(Chunk):
             subid = bytes.decode(data[start:start+3])
             if len(subid):
                 subsize = int.from_bytes(data[start+3:start+10], byteorder="little")
-                # print(subsize)
             if subid == "ID3":
-                # print(data)
                 self.data.ID3=ID3Chunk(subid, size - 10, data[start+10:start+size])
             else:
-                unrecognizedChunk = Chunk(subid, size-10, data[start+10:start+size])  # TODO niezapisywany
-                print(unrecognizedChunk)
+                unrecognizedChunk = Chunk(subid, size-10, data[start+10:start+size])  # niezapisywany bo nie ma takiego
+                print(unrecognizedChunk)                                              # i to na 100% błąd
             start = start + size
 
     def __repr__(self):
@@ -297,7 +445,6 @@ while 1:
     id = bytes.decode(f.read(4))
     if len(id):
         size = int.from_bytes(f.read(4), byteorder="little")
-        # print(size)
     else:
         break
     data = []
@@ -322,8 +469,15 @@ while 1:
         data = [f.read(size)]
         id3Chunk = id3Chunk(id, size, data[0])
         print(id3Chunk)
+    elif id == "fact":
+        data = [f.read(size)]
+        factChunk = RIFFHeader(id, size, data[0])
+        print(factChunk)
     elif id == "data":
-        sample_len = int(fmtChunk.data.bits_per_sample / 8)
+        if fmtChunk.data.bits_per_sample >= 8:
+            sample_len = int(fmtChunk.data.bits_per_sample / 8)
+        else:
+            sample_len = int(fmtChunk.data.bits_per_sample/4)
 
         # wersja klasyczna
         def sample_conversion_native(sample):
@@ -393,8 +547,8 @@ while 1:
         else:
             data = channels.append(samples)
         dataChunk = DataChunk(id, size, data)
-        print(dataChunk)
-    else: # TODO factchunk do przerobienia
+        # print(dataChunk)
+    else:
         data = [f.read(size)]
         unrecognizedChunk = Chunk(id, size, data)
         print(unrecognizedChunk)
@@ -404,12 +558,14 @@ while 1:
 
 samples = dataChunk.data.samples
 #TODO downsampling danych przy rysowaniu wykresów dla usprawnienia obliczenia i czasu rysowania
-#plt.plot(range(0, 100, 1), samples[0:100])
-plt.plot(range(0, len(samples[0])), samples[0])
-plt.show(block=True)
-#np.seterr(divide='ignore')  #TODO przy logarytmie wewnatrz tworzenia spektrogramu pojawia sie warning, tymczasowe
-#plt.specgram(x=samples, Fs=fmtChunk.data.sample_rate, scale="dB")
-#plt.yscale("symlog")
-#plt.ylabel("Frequency [Hz]")
-#plt.xlabel("Time [s]")
-#plt.show(block=True)
+# plt.plot(range(0, 100, 1), samples[0:100])
+# plt.plot(range(0, len(samples[0])), samples[0])
+# plt.show(block=True)
+# np.seterr(divide='ignore')  #TODO przy logarytmie wewnatrz tworzenia spektrogramu pojawia sie warning, tymczasowe
+# plt.specgram(x=samples, Fs=fmtChunk.data.sample_rate, scale="dB")
+# plt.yscale("symlog")
+# plt.ylabel("Frequency [Hz]")
+# plt.xlabel("Time [s]")
+# plt.show(block=True)
+
+
