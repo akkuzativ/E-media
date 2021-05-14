@@ -11,8 +11,13 @@ class Chunk:
         self.data = data
 
     def __repr__(self):
-        return str(self.id) + " - " + str(self.size)# + "\n" + str(self.data)
+        return str(self.id) + " - " + str(self.size)  # + "\n" + str(self.data)
+
     pass
+
+    def write(self, file):
+        file.write(self.id.encode(encoding='utf-8'))
+        file.write(self.size.to_bytes(4, byteorder="little", signed=True))
 
 
 class RIFFHeader(Chunk):
@@ -24,7 +29,9 @@ class RIFFHeader(Chunk):
 
         def __repr__(self):
             return str(self.format)
+
         pass
+
     data: Contents
 
     def __init__(self, id: str, size: int, data: list):
@@ -33,7 +40,12 @@ class RIFFHeader(Chunk):
 
     def __repr__(self):
         return Chunk.__repr__(self) + "\n" + str(self.data)
+
     pass
+
+    def write(self, file=None):
+        Chunk.write(self, file)
+        file.write(self.data.format.encode(encoding='utf-8'))
 
 
 class FmtChunk(Chunk):
@@ -59,11 +71,12 @@ class FmtChunk(Chunk):
                 self.extra_format_bytes = data[7]
 
         def __repr__(self):
-            list = str(self.audio_format) + " - " + str(self.num_channels) + " - " + str(self.sample_rate) +\
-                       " - " + str(self.byte_rate) + " - " + str(self.block_align) + " - " + str(self.bits_per_sample)
+            list = str(self.audio_format) + " - " + str(self.num_channels) + " - " + str(self.sample_rate) + \
+                   " - " + str(self.byte_rate) + " - " + str(self.block_align) + " - " + str(self.bits_per_sample)
             if data.index(data[-1]) > 5:
                 list += " - " + str(self.num_extra_format_bytes) + " - " + str(self.extra_format_bytes)
             return list
+
         pass
 
     data: Contents
@@ -74,7 +87,24 @@ class FmtChunk(Chunk):
 
     def __repr__(self):
         return Chunk.__repr__(self) + "\n" + str(self.data)
+
     pass
+
+    def write(self, file=None):
+        Chunk.write(self, file)
+        file.write(self.data.audio_format.to_bytes(2, byteorder="little", signed=True))
+        file.write(self.data.num_channels.to_bytes(2, byteorder="little", signed=True))
+        file.write(self.data.sample_rate.to_bytes(4, byteorder="little", signed=True))
+        file.write(self.data.byte_rate.to_bytes(4, byteorder="little", signed=True))
+        file.write(self.data.block_align.to_bytes(2, byteorder="little", signed=True))
+        file.write(self.data.bits_per_sample.to_bytes(2, byteorder="little", signed=True))
+        try:
+            file.write(self.data.num_extra_format_bytes.to_bytes(2, byteorder="little", signed=True))
+            file.write(self.data.extra_format_bytes.to_bytes(self.data.num_extra_format_bytes+1, byteorder="little", signed=True))
+            file.seek(-1, np.os.SEEK_END)
+            file.truncate()
+        except:
+            pass
 
 
 class INFOsubChunk(Chunk):
@@ -86,6 +116,7 @@ class INFOsubChunk(Chunk):
 
         def __repr__(self):
             return str(self.data)
+
         pass
 
     data: Contents
@@ -96,19 +127,24 @@ class INFOsubChunk(Chunk):
 
     def __repr__(self):
         return Chunk.__repr__(self) + " - " + str(self.data) + " - "
+
     pass
+
+    def write(self, file):
+        Chunk.write(self, file)
+        file.write(self.data.data.encode(encoding="utf-8"))
 
 
 class INFOChunk(Chunk):
     class Contents:
-        IART: INFOsubChunk #wykonawca
-        INAM: INFOsubChunk #tytuł utworu
-        IPRD: INFOsubChunk #tytuł albumu
-        ICRD: INFOsubChunk #data wydania
-        IGNR: INFOsubChunk # gatunek
-        ICMT: INFOsubChunk #komentarze
-        ITRK: INFOsubChunk #komentarze
-        ISFT: INFOsubChunk #oprogramowanie
+        IART: INFOsubChunk  # wykonawca
+        INAM: INFOsubChunk  # tytuł utworu
+        IPRD: INFOsubChunk  # tytuł albumu
+        ICRD: INFOsubChunk  # data wydania
+        IGNR: INFOsubChunk  # gatunek
+        ICMT: INFOsubChunk  # komentarze
+        ITRK: INFOsubChunk  # komentarze
+        ISFT: INFOsubChunk  # oprogramowanie
         unrecognized: INFOsubChunk
 
         def __repr__(self):
@@ -156,12 +192,13 @@ class INFOChunk(Chunk):
         Chunk.__init__(self=self, id=id, size=size, data=None)
         self.data = INFOChunk.Contents()
         start = 0
-        while start < len(data)-1:
-            subid = bytes.decode(data[start:start+4])
+        while start < len(data) - 1:
+            subid = bytes.decode(data[start:start + 4])
             if len(subid):
-                sizesubid = int.from_bytes(data[start+4:start+8], byteorder="little")
+                sizesubid = int.from_bytes(data[start + 4:start + 8], byteorder="little")
             if subid in self.Contents.__annotations__:
-                exec("%s=%s" % ('self.data.'+subid, "INFOsubChunk(subid, sizesubid, data[start+8:start+sizesubid+8])"))
+                exec(
+                    "%s=%s" % ('self.data.' + subid, "INFOsubChunk(subid, sizesubid, data[start+8:start+sizesubid+8])"))
             else:
                 # unrecognizedChunk = Chunk(subid, sizesubid, data[start + 8:start + sizesubid + 8])
                 self.data.unrecognized = INFOsubChunk(subid, sizesubid, data[start + 8:start + sizesubid + 8])
@@ -169,11 +206,51 @@ class INFOChunk(Chunk):
             start = start + sizesubid + 8
 
         if len(data) > 4 + start:
-            self.data.unrecognized = INFOsubChunk(bytes.decode(data[start:start + 4]), len(data)-8, data[start + 4:])
+            self.data.unrecognized = INFOsubChunk(bytes.decode(data[start:start + 4]), len(data) - 8, data[start + 4:])
 
     def __repr__(self):
         return Chunk.__repr__(self) + "\n" + str(self.data)
+
     pass
+
+    def write(self, file):
+        file.write(self.id.encode(encoding='utf-8'))
+        try:
+            self.data.INAM.write(file)
+        except AttributeError:
+            pass
+        try:
+            self.data.IPRD.write(file)
+        except AttributeError:
+            pass
+        try:
+            self.data.IART.write(file)
+        except AttributeError:
+            pass
+        try:
+            self.data.ICMT.write(file)
+        except AttributeError:
+            pass
+        try:
+            self.data.ICRD.write(file)
+        except AttributeError:
+            pass
+        try:
+            self.data.IGNR.write(file)
+        except AttributeError:
+            pass
+        try:
+            self.data.ITRK.write(file)
+        except AttributeError:
+            pass
+        try:
+            self.data.ISFT.write(file)
+        except AttributeError:
+            pass
+        try:
+            self.data.unrecognized.write(file)
+        except AttributeError:
+            pass
 
 class ADTLsubChunk1(Chunk):
     class Contents:
@@ -186,7 +263,8 @@ class ADTLsubChunk1(Chunk):
         code: str
         data: str
 
-        def __init__(self, cueID: str, data: str, sample: str = None, purpouse: str = None, country: str = None, lang: str = None, dial: str = None, code: str = None):
+        def __init__(self, cueID: str, data: str, sample: str = None, purpouse: str = None, country: str = None,
+                     lang: str = None, dial: str = None, code: str = None):
             self.cueID = cueID
             self.sample = sample
             self.purpouse = purpouse
@@ -198,6 +276,7 @@ class ADTLsubChunk1(Chunk):
 
         def __repr__(self):
             return str(self.cueID) + " - " + str(self.data)
+
         pass
 
     data: Contents
@@ -214,7 +293,9 @@ class ADTLsubChunk1(Chunk):
 
     def __repr__(self):
         return Chunk.__repr__(self) + " - " + str(self.data)
+
     pass
+
 
 class ADTLChunk(Chunk):
     class Contents:
@@ -248,30 +329,35 @@ class ADTLChunk(Chunk):
         Chunk.__init__(self=self, id=id, size=size, data=None)
         self.data = ADTLChunk.Contents()
         start = 0
-        while start < len(data)-1:
-            subid = bytes.decode(data[start:start+4])
+        while start < len(data) - 1:
+            subid = bytes.decode(data[start:start + 4])
             if len(subid):
-                sizesubid = int.from_bytes(data[start+4:start+8], byteorder="little")
+                sizesubid = int.from_bytes(data[start + 4:start + 8], byteorder="little")
                 cueID = bytes.decode(data[start + 8:start + 12])
             if subid in self.Contents.__annotations__:
-                exec("%s=%s" % ('self.data.'+subid, "ADTLsubChunk1(subid, sizesubid, cueID, data[start+12:start+sizesubid+12])"))
+                exec("%s=%s" % (
+                'self.data.' + subid, "ADTLsubChunk1(subid, sizesubid, cueID, data[start+12:start+sizesubid+12])"))
             else:
                 # unrecognizedChunk = Chunk(subid, sizesubid, cueID, data[start+12:start+sizesubid+12])
-                self.data.unrecognized = ADTLsubChunk1(subid, sizesubid, cueID, data[start+12:start+sizesubid+12])
+                self.data.unrecognized = ADTLsubChunk1(subid, sizesubid, cueID, data[start + 12:start + sizesubid + 12])
                 # print(unrecognizedChunk)
             start = start + sizesubid + 8
 
         if len(data) > 4 + start:
-            self.data.unrecognized = ADTLsubChunk1(bytes.decode(data[start:start + 4]), len(data)-8, "", data[start + 4:])
+            self.data.unrecognized = ADTLsubChunk1(bytes.decode(data[start:start + 4]), len(data) - 8, "",
+                                                   data[start + 4:])
 
     def __repr__(self):
         return Chunk.__repr__(self) + "\n" + str(self.data)
+
     pass
+
 
 class LISTChunk(Chunk):
     class Contents:
         INFO: INFOChunk
         adtl: ADTLChunk
+        unrecognized: INFOsubChunk
 
         def __repr__(self):
             list = ""
@@ -281,8 +367,13 @@ class LISTChunk(Chunk):
                 pass
             try:
                 list += str(self.adtl)
+            except AttributeError:
+                pass
+            try:
+                list += str(self.unrecognized)
             finally:
                 return list
+
         pass
 
     data: Contents
@@ -292,19 +383,33 @@ class LISTChunk(Chunk):
         self.data = LISTChunk.Contents()
         start = 0
         while start < data.index(data[-1]):
-            subid = bytes.decode(data[start:start+4])
+            subid = bytes.decode(data[start:start + 4])
             if subid == "INFO":
-                self.data.INFO=INFOChunk(subid, len(data[start+4:start+size]), data[start+4:start+size])
+                self.data.INFO = INFOChunk(subid, len(data[start + 4:start + size]), data[start + 4:start + size])
             elif subid == "adtl":
                 self.data.adtl = ADTLChunk(subid, len(data[start + 4:start + size]), data[start + 4:start + size])
             else:
-                unrecognizedChunk = Chunk(subid, len(data[start+4:start+size]), data[start+4:start+size])
-                print(unrecognizedChunk)     # niezapisywany bo nie ma takiego i to na 100% błąd
+                # unrecognizedChunk = Chunk(subid, len(data[start + 4:start + size]), data[start + 4:start + size])
+                # print(unrecognizedChunk)  # niezapisywany bo nie ma takiego i to na 100% błąd
+                self.data.unrecognized = INFOsubChunk(subid, len(data[start + 4:start + size]), data[start + 4:start + size])
             start = start + size
 
     def __repr__(self):
         return Chunk.__repr__(self) + "\n" + str(self.data)
+
     pass
+
+    def write(self, file):
+        Chunk.write(self, file)
+        try:
+            self.data.INFO.write(file)
+        except Exception:
+            self.data.adtl.write(file)
+        try:
+            self.data.unrecognized.write(file)
+        except Exception:
+            pass
+
 
 
 class DataChunk(Chunk):
@@ -316,7 +421,9 @@ class DataChunk(Chunk):
 
         def __repr__(self):
             return str(self.samples)
+
         pass
+
     data: Contents
 
     def __init__(self, id: str, size: int, data: list):
@@ -327,15 +434,21 @@ class DataChunk(Chunk):
         return Chunk.__repr__(self) + "\n" + str(self.data)
     pass
 
+    def write(self, file):
+        Chunk.write(self,file)
+        # file.write(self.data.samples.)
+        # print(self.data.samples)
+
+
 class ID3Chunk(Chunk):
     class Contents:
-        TPE1: INFOsubChunk  #wykonawca
-        COMM: INFOsubChunk  #tytuł utworu
-        TIT2: INFOsubChunk  #tytuł albumu
+        TPE1: INFOsubChunk  # wykonawca
+        COMM: INFOsubChunk  # tytuł utworu
+        TIT2: INFOsubChunk  # tytuł albumu
         TDRC: INFOsubChunk  # gatunek
-        TALB: INFOsubChunk  #komentarze
-        TRCK: INFOsubChunk  #oprogramowanie
-        TCON: INFOsubChunk  #oprogramowanie
+        TALB: INFOsubChunk  # komentarze
+        TRCK: INFOsubChunk  # oprogramowanie
+        TCON: INFOsubChunk  # oprogramowanie
         unrecognized: INFOsubChunk
 
         def __repr__(self):
@@ -372,6 +485,7 @@ class ID3Chunk(Chunk):
                 list += str(self.unrecognized)
             finally:
                 return list
+
     data: Contents
 
     def __init__(self, id: str, size: int, data: list):
@@ -379,25 +493,64 @@ class ID3Chunk(Chunk):
         self.data = ID3Chunk.Contents()
         start = 0
         while len(data) > 45:
-            subid = bytes.decode(data[start:start+4])
+            subid = bytes.decode(data[start:start + 4])
             if subid in self.Contents.__annotations__:
                 for byte in data[1:-3]:
                     # print(bytes.decode(data[data.index(byte)+5:data.index(byte)+9]))
-                    if bytes.decode(data[data.index(byte)+5:data.index(byte)+9]) in self.Contents.__annotations__:
-                        exec("%s=%s" % ('self.data.' + subid, "INFOsubChunk(subid,data.index(byte)+5-4, data[start+4:start+data.index(byte)+5])"))
+                    if bytes.decode(data[data.index(byte) + 5:data.index(byte) + 9]) in self.Contents.__annotations__:
+                        exec("%s=%s" % ('self.data.' + subid,
+                                        "INFOsubChunk(subid,data.index(byte)+5-4, data[start+4:start+data.index(byte)+5])"))
                         data = data[data.index(byte) + 5:]
                         break
             else:
-                unrecognizedChunk = Chunk(subid, size-4, data[start+4:start+size])
-                print(unrecognizedChunk)
+                # unrecognizedChunk = Chunk(subid, size - 4, data[start + 4:start + size])
+                # print(unrecognizedChunk)
+                self.data.unrecognized = INFOsubChunk(subid, len(data[start:data.index(byte)]), data[start:data.index(byte)])
+            # start = data[data.index(byte)]
 
         if len(data) > 4 + start:
-            self.data.unrecognized = INFOsubChunk(bytes.decode(data[start:start+4]), len(data)-8, data[start+4:])
+            self.data.unrecognized = INFOsubChunk(bytes.decode(data[start:start + 4]), len(data) - 8, data[start + 4:])
 
     def __repr__(self):
         return Chunk.__repr__(self) + "\n" + str(self.data)
+
     pass
 
+    def write(self, file):
+        file.write(self.id.encode(encoding='utf-8'))
+        file.write(self.size.to_bytes(7, byteorder='little', signed=True))
+        try:
+            self.data.TPE1.write(file)
+        except Exception:
+            pass
+        try:
+            self.data.TIT2.write(file)
+        except:
+            pass
+        try:
+            self.data.COMM.write(file)
+        except:
+            pass
+        try:
+            self.data.TALB.write(file)
+        except:
+            pass
+        try:
+            self.data.TDRC.write(file)
+        except:
+            pass
+        try:
+            self.data.TRCK.write(file)
+        except:
+            pass
+        try:
+            self.data.TCON.write(file)
+        except:
+            pass
+        try:
+            self.data.unrecognized.write(file)
+        except Exception:
+            pass
 
 class id3Chunk(Chunk):
     class Contents:
@@ -405,6 +558,7 @@ class id3Chunk(Chunk):
 
         def __repr__(self):
             return str(self.ID3)
+
         pass
 
     data: Contents
@@ -414,22 +568,30 @@ class id3Chunk(Chunk):
         self.data = id3Chunk.Contents()
         start = 0
         while start < data.index(data[-1]):
-            subid = bytes.decode(data[start:start+3])
+            subid = bytes.decode(data[start:start + 3])
             if len(subid):
-                subsize = int.from_bytes(data[start+3:start+10], byteorder="little")
+                subsize = int.from_bytes(data[start + 3:start + 10], byteorder="little")
             if subid == "ID3":
-                self.data.ID3=ID3Chunk(subid, size - 10, data[start+10:start+size])
+                self.data.ID3 = ID3Chunk(subid, size - 10, data[start + 10:start + size])
             else:
-                unrecognizedChunk = Chunk(subid, size-10, data[start+10:start+size])  # niezapisywany bo nie ma takiego
-                print(unrecognizedChunk)                                              # i to na 100% błąd
+                unrecognizedChunk = Chunk(subid, size - 10,
+                                          data[start + 10:start + size])  # niezapisywany bo nie ma takiego
+                print(unrecognizedChunk)  # i to na 100% błąd
             start = start + size
 
     def __repr__(self):
         return Chunk.__repr__(self) + "\n" + str(self.data)
+
     pass
 
+    def write(self, file):
+        Chunk.write(self, file)
+        self.data.ID3.write(file)
+
+
 class WavFile:
-    def __init__(self, a: RIFFHeader = None, b: FmtChunk = None, c: DataChunk = None, d: LISTChunk = None, e: list = None):
+    def __init__(self, a: RIFFHeader = None, b: FmtChunk = None, c: DataChunk = None, d: LISTChunk = None,
+                 e: list = None):
         self.riff_descriptor = a
         self.fmt = b
         self.data = c
@@ -437,6 +599,7 @@ class WavFile:
         self.unrecognizedChunks = e
 
     pass
+
 
 size = 0
 sample_len = 0
@@ -477,7 +640,8 @@ while 1:
         if fmtChunk.data.bits_per_sample >= 8:
             sample_len = int(fmtChunk.data.bits_per_sample / 8)
         else:
-            sample_len = int(fmtChunk.data.bits_per_sample/4)
+            sample_len = int(fmtChunk.data.bits_per_sample / 4)
+
 
         # wersja klasyczna
         def sample_conversion_native(sample):
@@ -505,7 +669,7 @@ while 1:
                 if sample_len == 1:
                     return np.frombuffer(samples, "uint8")
                 else:
-                    return np.frombuffer(samples, "int"+str(sample_len*8))
+                    return np.frombuffer(samples, "int" + str(sample_len * 8))
             elif fmtChunk.data.audio_format == 3:
                 if sample_len == 4:
                     return np.frombuffer(samples, "float32")
@@ -528,17 +692,18 @@ while 1:
             elif fmtChunk.data.audio_format == 65534:
                 pass
 
+
         raw_samples = f.read(size)
         samples = []
 
         # wykorzystanie klasycznego sposobu wczytywania - iteracje w pętli
-        for i in range(int(size/sample_len)):
-            samples.append(sample_conversion_native(raw_samples[i*sample_len:i*sample_len+sample_len]))
+        for i in range(int(size / sample_len)):
+            samples.append(sample_conversion_native(raw_samples[i * sample_len:i * sample_len + sample_len]))
 
         # wykorzystanie przyspieszonego wczytywania - zwraca od razu array sampli
         # data = sample_conversion_fast(raw_samples)
 
-        #TODO zdecydować się na sposób wczytywania
+        # TODO zdecydować się na sposób wczytywania
         channels = []
         if fmtChunk.data.num_channels > 1:
             for c in range(fmtChunk.data.num_channels):
@@ -554,10 +719,11 @@ while 1:
         print(unrecognizedChunk)
         print(unrecognizedChunk.data)
 
+f.close()
 # File = WavFile(riffChunk, fmtChunk, dataChunk, listChunk)
 
 samples = dataChunk.data.samples
-#TODO downsampling danych przy rysowaniu wykresów dla usprawnienia obliczenia i czasu rysowania
+# TODO downsampling danych przy rysowaniu wykresów dla usprawnienia obliczenia i czasu rysowania
 # plt.plot(range(0, 100, 1), samples[0:100])
 # plt.plot(range(0, len(samples[0])), samples[0])
 # plt.show(block=True)
@@ -568,4 +734,18 @@ samples = dataChunk.data.samples
 # plt.xlabel("Time [s]")
 # plt.show(block=True)
 
+############################################################################################
+# zapis
 
+file = open("nowy.wav", "wb")
+# file.write(riffChunk.id.encode(encoding='utf-8'))
+# file.write(riffChunk.size.to_bytes(4,byteorder="little", signed=True))
+# file.write(riffChunk.data.format.encode(encoding="utf-8"))
+riffChunk.write(file)
+fmtChunk.write(file)
+dataChunk.write(file)
+listChunk.write(file)
+id3Chunk.write(file)
+file.close()
+
+# print(bytes(riffChunk.size))
