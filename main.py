@@ -321,7 +321,7 @@ class INFOChunk(Chunk):
             if subid in self.Contents.__annotations__:
                 exec(
                     "%s=%s" % ('self.data.' + subid, "INFOsubChunk(subid, sizesubid, data[start+8:start+sizesubid+8])"))
-                exec("%s" % ("Optional.update({index: subid})"))
+                Optional.update({index: subid})
                 index += 1
             else:
                 self.data.unrecognized = INFOsubChunk(subid, sizesubid, data[start + 8:start + sizesubid + 8])
@@ -473,7 +473,7 @@ class ADTLChunk(Chunk):
             if subid in self.Contents.__annotations__:
                 exec("%s=%s" % (
                     'self.data.' + subid, "ADTLsubChunk(subid, sizesubid, cueID, data[start+12:start+sizesubid+12])"))
-                exec("%s" % ("Optional.update({index: subid})"))
+                Optional.update({index: subid})
                 index += 1
             else:
                 self.data.unrecognized = ADTLsubChunk(subid, sizesubid, cueID, data[start + 12:start + sizesubid + 12])
@@ -636,6 +636,7 @@ class ID3Chunk(Chunk):
         TALB: INFOsubChunk          # komentarze
         TRCK: INFOsubChunk          # oprogramowanie
         TCON: INFOsubChunk          # oprogramowanie
+        TXXX: INFOsubChunk
         unrecognized: INFOsubChunk  # nierozpoznany
 
         def __repr__(self):
@@ -666,6 +667,10 @@ class ID3Chunk(Chunk):
                 pass
             try:
                 list += str(self.TCON)
+            except AttributeError:
+                pass
+            try:
+                list += str(self.TXXX)
             except AttributeError:
                 pass
             try:
@@ -710,6 +715,11 @@ class ID3Chunk(Chunk):
             except:
                 pass
             try:
+                if 'TXXX' in tab:
+                    self.TXXX.write(file)
+            except:
+                pass
+            try:
                 file.write(self.unrecognized.id.encode(encoding='utf-8'))
                 file.write(self.unrecognized.data.data.encode(encoding='utf-8'))
             except Exception:
@@ -729,7 +739,7 @@ class ID3Chunk(Chunk):
                     if bytes.decode(data[data.index(byte) + 5:data.index(byte) + 9]) in self.Contents.__annotations__:
                         exec("%s=%s" % ('self.data.' + subid,
                                         "INFOsubChunk(subid,int.from_bytes(data[start + 4:start + 8], byteorder=\"little\"), data[start+8:start+data.index(byte)+5])"))
-                        exec("%s" % ("Optional.update({index: subid})"))
+                        Optional.update({index: subid})
                         index += 1
                         data = data[data.index(byte) + 5:]
                         break
@@ -832,7 +842,7 @@ class id3Chunk(Chunk):
 
 size = 0
 sample_len = 0
-f = open(file="data/sine404-list2.wav", mode="rb")
+f = open(file="data/gos_copy2.wav", mode="rb")
 Optional = {}
 index = 1
 while 1:
@@ -845,7 +855,7 @@ while 1:
     if id == "RIFF":
         data = [bytes.decode(f.read(4))]
         riffChunk = RIFFHeader(id, size, data)
-        # print(riffChunk)
+        print(riffChunk)
     elif id == "fmt ":
         data = [int.from_bytes(f.read(2), byteorder="little"), int.from_bytes(f.read(2), byteorder="little"),
                 int.from_bytes(f.read(4), byteorder="little"), int.from_bytes(f.read(4), byteorder="little"),
@@ -854,23 +864,23 @@ while 1:
             data.append(int.from_bytes(f.read(2), byteorder="little"))
             data.append(int.from_bytes(f.read(data[6]), byteorder="little"))
         fmtChunk = FmtChunk(id, size, data)
-        # print(fmtChunk)
+        print(fmtChunk)
     elif id == "LIST":
         data = [f.read(size)]
         listChunk = LISTChunk(id, size, data[0])
-        # print(listChunk)
+        print(listChunk)
         Optional.update({index: listChunk.id})
         index += 1
     elif id == "id3 ":
         data = [f.read(size)]
         id3Chunk = id3Chunk(id, size, data[0])
-        # print(id3Chunk)
+        print(id3Chunk)
         Optional.update({index: id3Chunk.id})
         index += 1
     elif id == "fact":
         data = [f.read(size)]
         factChunk = factChunk(id, size, data)
-        # print(factChunk)
+        print(factChunk)
         Optional.update({index: factChunk.id})
         index += 1
     elif id == "data":
@@ -914,7 +924,7 @@ while 1:
     else:
         data = [f.read(size)]
         unrecognizedChunk = Chunk(id, size, data)
-        # print(unrecognizedChunk)
+        print(unrecognizedChunk)
 
 f.close()
 
