@@ -1,7 +1,9 @@
 from matplotlib import pyplot as plt
+import scipy.fft
 import struct
 import audioop
 import numpy as np
+import os
 
 
 class Chunk:
@@ -12,6 +14,9 @@ class Chunk:
 
     def __repr__(self):
         return str(self.id) + " - " + str(self.size)  # + "\n" + str(self.data)
+
+    def __str__(self):
+        return f"Chunk ID: {self.id} Chunk size: {self.size}"
 
     pass
 
@@ -86,6 +91,18 @@ class FmtChunk(Chunk):
                 list += " - " + str(self.num_extra_format_bytes) + " - " + str(self.extra_format_bytes)
             return list
 
+        def __str__(self):
+            ret = f"Audio format: {self.audio_format}"
+            ret += f"\nNumber of channels: {self.num_channels}"
+            ret += f"\nSample rate: {self.sample_rate}"
+            ret += f"\nByte rate: {self.byte_rate}"
+            ret += f"\nBlock align: {self.block_align}"
+            ret += f"\nBits per sample: {self.bits_per_sample}"
+            if data.index(data[-1]) > 5:
+                ret += f"\nNumber of extra format bytes {self.num_extra_format_bytes}"
+                ret += f"\nExtra format bytes {self.extra_format_bytes}"
+            return ret
+
         pass
 
         def write(self, file):
@@ -116,6 +133,10 @@ class FmtChunk(Chunk):
 
     def __repr__(self):
         return Chunk.__repr__(self) + "\n" + str(self.data)
+
+    def __str__(self):
+        return Chunk.__repr__(self) + "\n" + str(self.data)
+
 
     pass
 
@@ -572,10 +593,37 @@ class DataChunk(Chunk):
 
         pass
 
-        def write(self, file):
+        def write(self, file, fmtChunk: FmtChunk):
+
+            def sample_conversion(sample, fmtChunk: FmtChunk):
+                if fmtChunk.data.bits_per_sample >= 8:
+                    sample_len = int(fmtChunk.data.bits_per_sample / 8)
+                else:
+                    sample_len = int(fmtChunk.data.bits_per_sample / 4)
+                if fmtChunk.data.audio_format == 1:
+                    if sample_len == 1:
+                        return int.to_bytes(sample, byteorder="little", signed=False, length=sample_len)
+                    else:
+                        return int.to_bytes(sample, byteorder="little", signed=True, length=sample_len)
+                elif fmtChunk.data.audio_format == 3:
+                    if sample_len == 4:
+                        return bytearray(struct.pack("f", sample))
+                    else:
+                        return bytearray(struct.pack("d", sample))
+                elif fmtChunk.data.audio_format == 6:
+                    return audioop.lin2alaw(sample, sample_len)
+                elif fmtChunk.data.audio_format == 7:
+                    return audioop.lin2ulaw(sample, sample_len)
+
+            for channel in self.samples:
+                for sample in channel:
+                    bytes_sample = sample_conversion(sample, fmtChunk)
+                    file.write(bytes_sample)
+
+
+
             # file.write(self.samples.)
             # print(self.samples)
-            pass
 
     data: Contents
 
@@ -588,9 +636,9 @@ class DataChunk(Chunk):
 
     pass
 
-    def write(self, file):
+    def write(self, file, fmtChunk: FmtChunk):
         Chunk.write(self, file)
-        self.data.write(file)
+        self.data.write(file, fmtChunk)
 
 
 class ID3Chunk(Chunk):
@@ -792,21 +840,21 @@ class id3Chunk(Chunk):
         self.data.write(file)
 
 
-class WavFile:
-    def __init__(self, a: RIFFHeader = None, b: FmtChunk = None, c: DataChunk = None, d: LISTChunk = None,
-                 e: list = None):
-        self.riff_descriptor = a
-        self.fmt = b
-        self.data = c
-        self.list = d
-        self.unrecognizedChunks = e
-
-    pass
+# class WavFile:
+#     def __init__(self, a: RIFFHeader = None, b: FmtChunk = None, c: DataChunk = None, d: LISTChunk = None,
+#                  e: list = None):
+#         self.riff_descriptor = a
+#         self.fmt = b
+#         self.data = c
+#         self.list = d
+#         self.unrecognizedChunks = e
+#
+#     pass
 
 
 size = 0
 sample_len = 0
-f = open(file="data/sine440-list.wav", mode="rb")
+f = open(file="data/sine440.wav", mode="rb")
 Optional = {}
 index = 1
 while 1:
@@ -854,8 +902,7 @@ while 1:
             sample_len = int(fmtChunk.data.bits_per_sample / 4)
 
 
-        # wersja klasyczna
-        def sample_conversion_native(sample):
+        def sample_conversion(sample):
             if fmtChunk.data.audio_format == 1:
                 if sample_len == 1:
                     return int.from_bytes(sample, byteorder="little", signed=False)
@@ -873,55 +920,17 @@ while 1:
             elif fmtChunk.data.audio_format == 65534:
                 pass
 
-
-        # Wersja przyspieszona wykorzystująca numpy
-        def sample_conversion_fast(samples: bytes):
-            if fmtChunk.data.audio_format == 1:
-                if sample_len == 1:
-                    return np.frombuffer(samples, "uint8")
-                else:
-                    return np.frombuffer(samples, "int" + str(sample_len * 8))
-            elif fmtChunk.data.audio_format == 3:
-                if sample_len == 4:
-                    return np.frombuffer(samples, "float32")
-                else:
-                    return np.frombuffer(samples, "float64")
-            elif fmtChunk.data.audio_format == 6:
-                ret = []
-                for i in range(int(size / sample_len)):
-                    ret.append(int.from_bytes(audioop.alaw2lin(
-                        samples[i * sample_len:i * sample_len + sample_len], sample_len),
-                        byteorder="little", signed=True))
-                return np.array(ret)
-            elif fmtChunk.data.audio_format == 7:
-                ret = []
-                for i in range(int(size / sample_len)):
-                    ret.append(int.from_bytes(audioop.ulaw2lin(
-                        samples[i * sample_len:i * sample_len + sample_len], sample_len),
-                        byteorder="little", signed=True))
-                return np.array(ret)
-            elif fmtChunk.data.audio_format == 65534:
-                pass
-
-
         raw_samples = f.read(size)
         samples = []
 
         # wykorzystanie klasycznego sposobu wczytywania - iteracje w pętli
         for i in range(int(size / sample_len)):
-            samples.append(sample_conversion_native(raw_samples[i * sample_len:i * sample_len + sample_len]))
+            samples.append(sample_conversion(raw_samples[i * sample_len:i * sample_len + sample_len]))
 
-        # wykorzystanie przyspieszonego wczytywania - zwraca od razu array sampli
-        # data = sample_conversion_fast(raw_samples)
-
-        # TODO zdecydować się na sposób wczytywania
         channels = []
-        if fmtChunk.data.num_channels > 1:
-            for c in range(fmtChunk.data.num_channels):
-                channels.append(samples[c::fmtChunk.data.num_channels])
-            data = channels
-        else:
-            data = channels.append(samples)
+        for c in range(fmtChunk.data.num_channels):
+            channels.append(samples[c::fmtChunk.data.num_channels])
+        data = channels
         dataChunk = DataChunk(id, size, data)
         # print(dataChunk)
     else:
@@ -931,21 +940,108 @@ while 1:
         # print(unrecognizedChunk.data)
 
 f.close()
-# File = WavFile(riffChunk, fmtChunk, dataChunk, listChunk)
-samples = dataChunk.data.samples
-# TODO downsampling danych przy rysowaniu wykresów dla usprawnienia obliczenia i czasu rysowania
-# plt.plot(range(0, 100, 1), samples[0:100])
-# plt.plot(range(0, len(samples[0])), samples[0])
-# plt.show(block=True)
-# np.seterr(divide='ignore')  #TODO przy logarytmie wewnatrz tworzenia spektrogramu pojawia sie warning, tymczasowe
-# plt.specgram(x=samples, Fs=fmtChunk.data.sample_rate, scale="dB")
-# plt.yscale("symlog")
-# plt.ylabel("Frequency [Hz]")
-# plt.xlabel("Time [s]")
-# plt.show(block=True)
+
+
+def display_information(riffChunk: RIFFHeader, dataChunk: DataChunk, fmtChunk: FmtChunk, optional: dict):
+    print("Pomyślnie wczytano plik")
+    print(fmtChunk)
+
+
+def display_waveform(dataChunk: DataChunk, fmtChunk: FmtChunk):
+    plt.close()
+    channels = np.array(dataChunk.data.samples)
+    time_axis = np.array(range(0, len(channels[0])))/fmtChunk.data.sample_rate
+    figure, axes = plt.subplots(len(channels), 1, sharex=False, sharey=True)
+    if fmtChunk.data.num_channels == 1:
+        channel = channels[0]
+        channel = channel / (2 ** (fmtChunk.data.bits_per_sample - 1))
+        axes.plot(time_axis, channel)
+        axes.set_ylabel("Znormalizowana amplituda")
+        axes.set_xlabel("Czas [s]")
+    else:
+        for channel_index, channel in enumerate(channels):
+            if fmtChunk.data.audio_format == 1:
+                channel = channel/(2**(fmtChunk.data.bits_per_sample-1))
+            axes[channel_index].plot(time_axis, channel)
+            axes[channel_index].set_title(f"Kanał {channel_index+1}")
+            axes[channel_index].set_ylabel("Znormalizowana amplituda")
+            axes[channel_index].set_xlabel("Czas [s]")
+    plt.suptitle("Przebieg sygnału wewnątrz pliku")
+    plt.tight_layout()
+    plt.show(block=True)
+
+
+def display_spectrogram(dataChunk: DataChunk, fmtChunk: FmtChunk):
+    plt.close()
+    channels = np.array(dataChunk.data.samples)
+    time_axis = np.array(range(0, len(channels[0])))/fmtChunk.data.sample_rate
+    figure, axes = plt.subplots(len(channels), 1, sharex=False, sharey=True)
+    if fmtChunk.data.num_channels == 1:
+        channel = channels[0]
+        channel = channel / (2 ** (fmtChunk.data.bits_per_sample - 1))
+        axes.specgram(x=channel, Fs=fmtChunk.data.sample_rate, scale="dB")
+        axes.set_yscale("symlog")
+        axes.set_ylabel("Częstotliwość [Hz]")
+        axes.set_xlabel("Czas [s]")
+    else:
+        for channel_index, channel in enumerate(channels):
+            if fmtChunk.data.audio_format == 1:
+                channel = channel/(2**(fmtChunk.data.bits_per_sample-1))
+            axes[channel_index].specgram(x=channel, Fs=fmtChunk.data.sample_rate, scale="dB")
+            axes[channel_index].set_yscale("symlog")
+            axes[channel_index].set_title(f"Kanał {channel_index+1}")
+            axes[channel_index].set_ylabel("Częstotliwość [Hz]")
+            axes[channel_index].set_xlabel("Czas [s]")
+    plt.suptitle("Spektrogram sygnału wewnątrz pliku")
+    plt.tight_layout()
+    plt.show(block=True)
+
+
+def display_amplitude_spectrum(dataChunk: DataChunk, fmtChunk: FmtChunk):
+    plt.close()
+    channels = np.array(dataChunk.data.samples)
+    time_axis = np.array(range(0, len(channels[0])))/fmtChunk.data.sample_rate
+    figure, axes = plt.subplots(len(channels), 1, sharex=False, sharey=True)
+    if fmtChunk.data.num_channels == 1:
+        channel = channels[0]
+        channel = channel / (2 ** (fmtChunk.data.bits_per_sample - 1))
+        axes.plot(time_axis, channel)
+        amplitude = scipy.fft.rfft(channel)
+        frequencies = scipy.fft.rfftfreq(len(channel), 1 / fmtChunk.data.sample_rate)
+        axes.plot(frequencies, np.abs(amplitude))
+        axes.set_xscale("symlog")
+        axes.set_ylabel("Amplituda")
+        axes.set_xlabel("Częstotliwość [Hz]")
+    else:
+        for channel_index, channel in enumerate(channels):
+            if fmtChunk.data.audio_format == 1:
+                channel = channel/(2**(fmtChunk.data.bits_per_sample-1))
+            amplitude = scipy.fft.rfft(channel)
+            frequencies = scipy.fft.rfftfreq(len(channel), 1/fmtChunk.data.sample_rate)
+            axes[channel_index].plot(frequencies, np.abs(amplitude))
+            axes[channel_index].set_xscale("symlog")
+            axes[channel_index].set_title(f"Kanał {channel_index+1}")
+            axes[channel_index].set_ylabel("Amplituda")
+            axes[channel_index].set_xlabel("Częstotliwość [Hz]")
+    plt.suptitle("Widmo amplitudowe sygnału wewnątrz pliku")
+    plt.tight_layout()
+    plt.show(block=True)
+
+
+def display_phase_spectrum(dataChunk: DataChunk, fmtChunk: FmtChunk):
+    pass
+
+
+display_information(riffChunk, dataChunk, fmtChunk, Optional)
+display_waveform(dataChunk, fmtChunk)
+display_spectrogram(dataChunk, fmtChunk)
+display_amplitude_spectrum(dataChunk, fmtChunk)
 
 ############################################################################################
 # zapis
+
+
+
 
 print("Podaj indeksy które metadane zapisać do pliku, zakończ wybór nieistniejąym indeksem:")
 print(Optional)
@@ -960,7 +1056,7 @@ while True:
 file = open("nowy.wav", "wb")
 riffChunk.write(file)
 fmtChunk.write(file)
-dataChunk.write(file)
+dataChunk.write(file, fmtChunk)
 try:
     if 'LIST' in tab:
         listChunk.write(file)
