@@ -13,7 +13,7 @@ class Chunk:
         self.data = data
 
     def __repr__(self):
-        return str(self.id) + " - " + str(self.size)  # + "\n" + str(self.data)
+        return str(self.id) + " - " + str(self.size)  # + " - " + str(self.data)
 
     def __str__(self):
         return f"Chunk ID: {self.id} Chunk size: {self.size}"
@@ -211,15 +211,15 @@ class INFOsubChunk(Chunk):
 
 class INFOChunk(Chunk):
     class Contents:
-        IART: INFOsubChunk  # wykonawca
-        INAM: INFOsubChunk  # tytuł utworu
-        IPRD: INFOsubChunk  # tytuł albumu
-        ICRD: INFOsubChunk  # data wydania
-        IGNR: INFOsubChunk  # gatunek
-        ICMT: INFOsubChunk  # komentarze
-        ITRK: INFOsubChunk  # komentarze
-        ISFT: INFOsubChunk  # oprogramowanie
-        unrecognized: INFOsubChunk
+        IART: INFOsubChunk          # wykonawca
+        INAM: INFOsubChunk          # tytuł utworu
+        IPRD: INFOsubChunk          # tytuł albumu
+        ICRD: INFOsubChunk          # data wydania
+        IGNR: INFOsubChunk          # gatunek
+        ICMT: INFOsubChunk          # komentarze
+        ITRK: INFOsubChunk          # komentarze
+        ISFT: INFOsubChunk          # oprogramowanie
+        unrecognized: INFOsubChunk  # nierozpoznany
 
         def __repr__(self):
             list = ""
@@ -304,7 +304,6 @@ class INFOChunk(Chunk):
             try:
                 file.write(self.unrecognized.id.encode(encoding='utf-8'))
                 file.write(self.unrecognized.data.data.encode(encoding='utf-8'))
-                # self.unrecognized.write(file)
             except AttributeError:
                 pass
 
@@ -325,11 +324,9 @@ class INFOChunk(Chunk):
                 exec("%s" % ("Optional.update({index: subid})"))
                 index += 1
             else:
-                # unrecognizedChunk = Chunk(subid, sizesubid, data[start + 8:start + sizesubid + 8])
                 self.data.unrecognized = INFOsubChunk(subid, sizesubid, data[start + 8:start + sizesubid + 8])
                 Optional.update({index: self.id + self.data.unrecognized.id})
                 index += 1
-                # print(unrecognizedChunk)
             start = start + sizesubid + 8
 
         if len(data) > 4 + start:
@@ -458,7 +455,6 @@ class ADTLChunk(Chunk):
             try:
                 file.write(self.unrecognized.id.encode(encoding='utf-8'))
                 file.write(self.unrecognized.data.data.encode(encoding='utf-8'))
-                # self.unrecognized.write(file)
             except AttributeError:
                 pass
 
@@ -480,11 +476,9 @@ class ADTLChunk(Chunk):
                 exec("%s" % ("Optional.update({index: subid})"))
                 index += 1
             else:
-                # unrecognizedChunk = Chunk(subid, sizesubid, cueID, data[start+12:start+sizesubid+12])
                 self.data.unrecognized = ADTLsubChunk(subid, sizesubid, cueID, data[start + 12:start + sizesubid + 12])
                 Optional.update({index: self.id + self.data.unrecognized.id})
                 index += 1
-                # print(unrecognizedChunk)
             start = start + sizesubid + 8
 
         if len(data) > 4 + start:
@@ -540,7 +534,6 @@ class LISTChunk(Chunk):
             try:
                 file.write(self.unrecognized.id.encode(encoding='utf-8'))
                 file.write(self.unrecognized.data.data.encode(encoding='utf-8'))
-                # self.unrecognized.write(file)
             except Exception:
                 pass
 
@@ -562,11 +555,8 @@ class LISTChunk(Chunk):
                 Optional.update({index: self.data.adtl.id})
                 index += 1
             else:
-                # unrecognizedChunk = Chunk(subid, len(data[start + 4:start + size]), data[start + 4:start + size])
-                # print(unrecognizedChunk)  # niezapisywany bo nie ma takiego i to na 100% błąd
                 self.data.unrecognized = INFOsubChunk(subid, len(data[start + 4:start + size]),
                                                       data[start + 4:start + size])
-                # Optional.update({index: self.data.unrecognized.id})
                 Optional.update({index: self.id + self.data.unrecognized.id})
                 index += 1
             start = start + size
@@ -621,10 +611,6 @@ class DataChunk(Chunk):
                     file.write(bytes_sample)
 
 
-
-            # file.write(self.samples.)
-            # print(self.samples)
-
     data: Contents
 
     def __init__(self, id: str, size: int, data: list):
@@ -643,14 +629,14 @@ class DataChunk(Chunk):
 
 class ID3Chunk(Chunk):
     class Contents:
-        TPE1: INFOsubChunk  # wykonawca
-        COMM: INFOsubChunk  # tytuł utworu
-        TIT2: INFOsubChunk  # tytuł albumu
-        TDRC: INFOsubChunk  # gatunek
-        TALB: INFOsubChunk  # komentarze
-        TRCK: INFOsubChunk  # oprogramowanie
-        TCON: INFOsubChunk  # oprogramowanie
-        unrecognized: INFOsubChunk
+        TPE1: INFOsubChunk          # wykonawca
+        COMM: INFOsubChunk          # tytuł utworu
+        TIT2: INFOsubChunk          # tytuł albumu
+        TDRC: INFOsubChunk          # gatunek
+        TALB: INFOsubChunk          # komentarze
+        TRCK: INFOsubChunk          # oprogramowanie
+        TCON: INFOsubChunk          # oprogramowanie
+        unrecognized: INFOsubChunk  # nierozpoznany
 
         def __repr__(self):
             list = ""
@@ -726,7 +712,6 @@ class ID3Chunk(Chunk):
             try:
                 file.write(self.unrecognized.id.encode(encoding='utf-8'))
                 file.write(self.unrecognized.data.data.encode(encoding='utf-8'))
-                # self.unrecognized.write(file)
             except Exception:
                 pass
 
@@ -742,7 +727,6 @@ class ID3Chunk(Chunk):
             if subid in self.Contents.__annotations__:
                 for byte in data[1:-3]:
                     if bytes.decode(data[data.index(byte) + 5:data.index(byte) + 9]) in self.Contents.__annotations__:
-                        # print(int.from_bytes(data[start + 4:start + 8], byteorder="little"))
                         exec("%s=%s" % ('self.data.' + subid,
                                         "INFOsubChunk(subid,int.from_bytes(data[start + 4:start + 8], byteorder=\"little\"), data[start+8:start+data.index(byte)+5])"))
                         exec("%s" % ("Optional.update({index: subid})"))
@@ -750,13 +734,10 @@ class ID3Chunk(Chunk):
                         data = data[data.index(byte) + 5:]
                         break
             else:
-                # unrecognizedChunk = Chunk(subid, size - 4, data[start + 4:start + size])
-                # print(unrecognizedChunk)
-                self.data.unrecognized = INFOsubChunk(subid, len(data[start + 4:data.index(byte) + 5]),
-                                                      data[start + 4:data.index(byte) + 5])
+                self.data.unrecognized = INFOsubChunk(subid, len(data[start + 4:]),
+                                                      data[start + 4:])
                 Optional.update({index: self.id + self.data.unrecognized.id})
                 index += 1
-            # start = data[data.index(byte)]
 
         if len(data) > 4 + start:
             self.data.unrecognized = INFOsubChunk(bytes.decode(data[start:start + 4]), len(data[start + 4:]) - 8,
@@ -802,7 +783,6 @@ class id3Chunk(Chunk):
             try:
                 file.write(self.unrecognized.id.encode(encoding='utf-8'))
                 file.write(self.unrecognized.data.data.encode(encoding='utf-8'))
-                # self.unrecognized.write(file)
             except Exception:
                 pass
 
@@ -821,8 +801,6 @@ class id3Chunk(Chunk):
                 Optional.update({index: self.data.ID3.id})
                 index += 1
             else:
-                # unrecognizedChunk = Chunk(subid, subsize, data[start + 10:start + size])
-                # print(unrecognizedChunk)  # niezapisywany bo nie ma takiego i to na 100% błąd
                 self.data.unrecognized = INFOsubChunk(subid, len(data[start + 4:start + size]),
                                                       data[start + 4:start + size])
                 Optional.update({index: self.id + self.data.unrecognized.id})
@@ -854,7 +832,7 @@ class id3Chunk(Chunk):
 
 size = 0
 sample_len = 0
-f = open(file="data/sine440.wav", mode="rb")
+f = open(file="data/sine404-list2.wav", mode="rb")
 Optional = {}
 index = 1
 while 1:
@@ -937,7 +915,6 @@ while 1:
         data = [f.read(size)]
         unrecognizedChunk = Chunk(id, size, data)
         # print(unrecognizedChunk)
-        # print(unrecognizedChunk.data)
 
 f.close()
 
@@ -1037,13 +1014,11 @@ display_waveform(dataChunk, fmtChunk)
 display_spectrogram(dataChunk, fmtChunk)
 display_amplitude_spectrum(dataChunk, fmtChunk)
 
-############################################################################################
+###
 # zapis
 
-
-
-
-print("Podaj indeksy które metadane zapisać do pliku, zakończ wybór nieistniejąym indeksem:")
+print("Podaj indeksy które metadane zapisać do pliku, zakończ wybór wpisując literę:")
+print("(Pamiętaj, żęby podać wszystkie chunki zawierające chunk, który chcesz zapisać):")
 print(Optional)
 tab = []
 while True:
