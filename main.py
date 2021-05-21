@@ -146,6 +146,7 @@ class FmtChunk(Chunk):
         Chunk.write(self, file)
         self.data.write(file)
 
+
 class factChunk(Chunk):
     class Contents:
         data: int
@@ -179,6 +180,7 @@ class factChunk(Chunk):
     def write(self, file):
         Chunk.write(self, file)
         self.data.write(file)
+
 
 class INFOsubChunk(Chunk):
     class Contents:
@@ -350,6 +352,126 @@ class INFOChunk(Chunk):
 
     def write(self, file):
         file.write(self.id.encode(encoding='utf-8'))
+        self.data.write(file)
+
+
+class CuesubChunk:
+    class Contents:
+        ID: str
+        position: int
+        data_chunk_ID: str
+        chunk_start: int
+        block_start: int
+        sample_offset: int
+
+        def __init__(self, data: list):
+            self.ID = data[0]
+            self.position = data[1]
+            self.data_chunk_ID = data[2]
+            self.chunk_start = data[3]
+            self.block_start = data[4]
+            self.sample_offset = data[5]
+
+        def __repr__(self):
+            list = str(self.ID) + " - " + str(self.position) + " - " + str(self.data_chunk_ID) + \
+                   " - " + str(self.chunk_start) + " - " + str(self.block_start) + " - " + str(self.sample_offset)
+            return list
+
+        def __str__(self):
+            ret = f"\t\tID: {self.ID}"
+            ret += f"\n\t\tPosition: {self.position}"
+            ret += f"\n\t\tData Chunk ID: {self.data_chunk_ID}"
+            ret += f"\n\t\tChunk Start: {self.chunk_start}"
+            ret += f"\n\t\tBlock Start: {self.block_start}"
+            ret += f"\n\t\tSample Offset: {self.sample_offset}\n\n"
+            return ret
+
+        pass
+
+        def write(self, file):
+            try:
+                file.write(self.ID.encode(encoding='utf-8'))
+                file.write(self.position.to_bytes(4, byteorder="little", signed=True))
+                file.write(self.data_chunk_ID.encode(encoding='utf-8'))
+                file.write(self.chunk_start.to_bytes(4, byteorder="little", signed=True))
+                file.write(self.block_start.to_bytes(4, byteorder="little", signed=True))
+                file.write(self.sample_offset.to_bytes(4, byteorder="little", signed=True))
+            except Exception:
+                pass
+
+    data: Contents
+
+    def __init__(self, data: list):
+        self.data = CuesubChunk.Contents(data)
+
+    def __repr__(self):
+        return str(self.data)
+
+    def __str__(self):
+        return str(self.data)
+
+    pass
+
+    def write(self, file=None):
+        self.data.write(file)
+
+
+class CueChunk(Chunk):
+    class Contents:
+        numPoints: int
+        Points: list[CuesubChunk]
+
+        def __init__(self, numPoints: int):
+            self.numPoints = numPoints
+
+        def __repr__(self):
+            list = "\t\tnumber of Points: " + str(self.numPoints) + "\n"
+            for cue in self.Points:
+                try:
+                    list += str(cue)
+                except AttributeError:
+                    pass
+            return list
+
+        def write(self, file):
+            file.write(self.numPoints.to_bytes(4, byteorder="little", signed=True))
+            for cue in self.Points:
+                try:
+                    cue.write(file)
+                except AttributeError:
+                    pass
+
+    data: Contents
+
+    def __init__(self, id: str, size: int, data: list):
+        global index
+        Chunk.__init__(self=self, id=id, size=size, data=None)
+        data = data[0]
+        numPoints = int.from_bytes(data[:4], byteorder="little")
+        self.data = CueChunk.Contents(numPoints)
+        for start in range(numPoints):
+            point = []
+            for i in range(6):
+                if start*24+i*4+8 > size:
+                    print("Wrong format of point.")
+                    break
+                point.append(int.from_bytes(data[start*24+i*4+4:start*24+i*4+8], byteorder="little"))
+
+            if len(point) == 6:
+                self.data.Points.append(CuesubChunk(point))
+            else:
+                pass
+
+    def __repr__(self):
+        return Chunk.__repr__(self) + "\n" + str(self.data)
+
+    def __str__(self):
+        return "\t" + Chunk.__str__(self) + "\n" + str(self.data)
+
+    pass
+
+    def write(self, file):
+        Chunk.write(self, file)
         self.data.write(file)
 
 
@@ -671,7 +793,7 @@ class ID3Chunk(Chunk):
         unrecognized: INFOsubChunk  # nierozpoznany
 
         def __repr__(self):
-            list =  "\t\t\tVersion: " + str(self.version) + "\n"
+            list = "\t\t\tVersion: " + str(self.version) + "\n"
             try:
                 list += str(self.TPE1)
             except AttributeError:
@@ -889,7 +1011,7 @@ class id3Chunk(Chunk):
 
 size = 0
 sample_len = 0
-f = open(file="installer_music2.wav", mode="rb")
+f = open(file="data/sine440-list.wav", mode="rb")
 Optional = {}
 index = 1
 while 1:
@@ -924,6 +1046,11 @@ while 1:
         data = [f.read(size)]
         factChunk = factChunk(id, size, data)
         Optional.update({index: factChunk.id})
+        index += 1
+    elif id == "cue ":
+        data = [f.read(size)]
+        cueChunk = CueChunk(id, size, data)
+        Optional.update({index: cueChunk.id})
         index += 1
     elif id == "data":
         if fmtChunk.data.bits_per_sample >= 8:
@@ -982,10 +1109,10 @@ def display_information(riffChunk: RIFFHeader, dataChunk: DataChunk, fmtChunk: F
         print(id3Chunk)
     if 'fact' in Optional.values():
         print(factChunk)
-    # try:
-    #     print(cueChunk)
-    # except Exception:
-    #     pass
+    try:
+        print(cueChunk)
+    except Exception:
+        pass
 
 
 
@@ -1083,7 +1210,7 @@ display_information(riffChunk, dataChunk, fmtChunk, Optional)
 # zapis
 
 print("Podaj indeksy które metadane zapisać do pliku, zakończ wybór wpisując literę:")
-print("(Pamiętaj, żęby podać wszystkie chunki zawierające chunk, który chcesz zapisać):")
+print("(Pamiętaj, żeby podać wszystkie chunki zawierające chunk, który chcesz zapisać):")
 print(Optional)
 tab = []
 while True:
@@ -1110,6 +1237,11 @@ except Exception:
 try:
     if 'fact' in tab:
         factChunk.write(file)
+except Exception:
+    pass
+try:
+    if 'cue ' in tab:
+        cueChunk.write(file)
 except Exception:
     pass
 file.close()
