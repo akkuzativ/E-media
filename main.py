@@ -227,7 +227,7 @@ class INFOChunk(Chunk):
         ICMT: INFOsubChunk          # komentarze
         ITRK: INFOsubChunk          # komentarze
         ISFT: INFOsubChunk          # oprogramowanie
-        unrecognized: INFOsubChunk  # nierozpoznany
+        unrecognized: list[INFOsubChunk]  # nierozpoznany
 
         def __repr__(self):
             list = ""
@@ -264,9 +264,14 @@ class INFOChunk(Chunk):
             except AttributeError:
                 pass
             try:
-                list += str(self.unrecognized)
-            finally:
-                return list
+                for unrecognized in self.unrecognized:
+                    try:
+                        list += str(unrecognized)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+            return list
 
         def write(self, file):
             try:
@@ -310,9 +315,13 @@ class INFOChunk(Chunk):
             except AttributeError:
                 pass
             try:
-                file.write(self.unrecognized.id.encode(encoding='utf-8'))
-                file.write(self.unrecognized.data.data.encode(encoding='utf-8'))
-            except AttributeError:
+                for unrecognized in self.unrecognized:
+                    try:
+                        file.write(unrecognized.id.encode(encoding='utf-8'))
+                        file.write(unrecognized.data.data.encode(encoding='utf-8'))
+                    except AttributeError:
+                        pass
+            except Exception:
                 pass
 
     data: Contents
@@ -332,15 +341,14 @@ class INFOChunk(Chunk):
                 Optional.update({index: subid})
                 index += 1
             else:
-                self.data.unrecognized = INFOsubChunk(subid, sizesubid, data[start + 8:start + sizesubid + 8])
-                Optional.update({index: self.id + self.data.unrecognized.id})
+                self.data.unrecognized.append(INFOsubChunk(subid, sizesubid, data[start + 8:start + sizesubid + 8]))
+                Optional.update({index: self.id + self.data.unrecognized[-1].id})
                 index += 1
             start = start + sizesubid + 8
 
         if len(data) > 4 + start:
-            self.data.unrecognized = INFOsubChunk(bytes.decode(data[start:start + 4]), len(data[start + 4:]),
-                                                  data[start + 4:])
-            Optional.update({index: self.id + self.data.unrecognized.id})
+            self.data.unrecognized.append(INFOsubChunk(bytes.decode(data[start:start + 4]), len(data[start + 4:]), data[start + 4:]))
+            Optional.update({index: self.id + self.data.unrecognized[-1].id})
             index += 1
 
     def __repr__(self):
@@ -561,7 +569,7 @@ class ADTLChunk(Chunk):
         labl: ADTLsubChunk
         note: ADTLsubChunk
         ltxt: ADTLsubChunk
-        unrecognized: ADTLsubChunk
+        unrecognized: list[ADTLsubChunk]
 
         def __repr__(self):
             list = ""
@@ -578,9 +586,14 @@ class ADTLChunk(Chunk):
             except AttributeError:
                 pass
             try:
-                list += str(self.unrecognized)
-            finally:
-                return list
+                for unrecognized in self.unrecognized:
+                    try:
+                        list += str(unrecognized)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+            return list
 
         def write(self, file):
             try:
@@ -599,9 +612,13 @@ class ADTLChunk(Chunk):
             except AttributeError:
                 pass
             try:
-                file.write(self.unrecognized.id.encode(encoding='utf-8'))
-                file.write(self.unrecognized.data.data.encode(encoding='utf-8'))
-            except AttributeError:
+                for unrecognized in self.unrecognized:
+                    try:
+                        file.write(unrecognized.id.encode(encoding='utf-8'))
+                        file.write(unrecognized.data.data.encode(encoding='utf-8'))
+                    except AttributeError:
+                        pass
+            except Exception:
                 pass
 
     data: Contents
@@ -622,15 +639,15 @@ class ADTLChunk(Chunk):
                 Optional.update({index: subid})
                 index += 1
             else:
-                self.data.unrecognized = ADTLsubChunk(subid, sizesubid, cueID, data[start + 12:start + sizesubid + 12])
-                Optional.update({index: self.id + self.data.unrecognized.id})
+                self.data.unrecognized.append(ADTLsubChunk(subid, sizesubid, cueID, data[start + 12:start + sizesubid + 12]))
+                Optional.update({index: self.id + self.data.unrecognized[-1].id})
                 index += 1
             start = start + sizesubid + 8
 
         if len(data) > 4 + start:
-            self.data.unrecognized = ADTLsubChunk(bytes.decode(data[start:start + 4]), len(data[start + 4:]), "",
-                                                  data[start + 4:])
-            Optional.update({index: self.id + self.data.unrecognized.id})
+            self.data.unrecognized.append(ADTLsubChunk(bytes.decode(data[start:start + 4]), len(data[start + 4:]), "",
+                                                  data[start + 4:]))
+            Optional.update({index: self.id + self.data.unrecognized[-1].id})
             index += 1
 
     def __repr__(self):
@@ -649,7 +666,7 @@ class LISTChunk(Chunk):
     class Contents:
         INFO: INFOChunk
         adtl: ADTLChunk
-        unrecognized: INFOsubChunk
+        unrecognized: list[INFOsubChunk]
 
         def __repr__(self):
             list = ""
@@ -662,9 +679,14 @@ class LISTChunk(Chunk):
             except AttributeError:
                 pass
             try:
-                list += str(self.unrecognized)
-            finally:
-                return list
+                for unrecognized in self.unrecognized:
+                    try:
+                        list += str(unrecognized)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+            return list
 
         pass
 
@@ -680,8 +702,12 @@ class LISTChunk(Chunk):
             except Exception:
                 pass
             try:
-                file.write(self.unrecognized.id.encode(encoding='utf-8'))
-                file.write(self.unrecognized.data.data.encode(encoding='utf-8'))
+                for unrecognized in self.unrecognized:
+                    try:
+                        file.write(unrecognized.id.encode(encoding='utf-8'))
+                        file.write(unrecognized.data.data.encode(encoding='utf-8'))
+                    except AttributeError:
+                        pass
             except Exception:
                 pass
 
@@ -703,11 +729,15 @@ class LISTChunk(Chunk):
                 Optional.update({index: self.data.adtl.id})
                 index += 1
             else:
-                self.data.unrecognized = INFOsubChunk(subid, len(data[start + 4:start + size]),
-                                                      data[start + 4:start + size])
-                Optional.update({index: self.id + self.data.unrecognized.id})
+                self.data.unrecognized.append(INFOsubChunk(subid, len(data[start + 4:start + size]), data[start + 4:start + size]))
+                Optional.update({index: self.id + self.data.unrecognized[-1].id})
                 index += 1
             start = start + size
+
+        if len(data) > 4 + start:
+            self.data.unrecognized.append(INFOsubChunk(bytes.decode(data[start:start + 4]), len(data[start + 4:]), data[start + 4:]))
+            Optional.update({index: self.id + self.data.unrecognized[-1].id})
+            index += 1
 
     def __repr__(self):
         return Chunk.__repr__(self) + "\n" + str(self.data)
@@ -717,6 +747,20 @@ class LISTChunk(Chunk):
     pass
 
     def write(self, file):
+        self.size = 0
+        if "INFO" in tab:
+            for field in tab:
+                if tab.index(field) < tab.index("INFO") and field in self.data.INFO.Contents.__annotations__:
+                    exec("self.size += self.data.INFO.data.%s.size + 8" % field)
+        if self.size > 0:
+            self.size += 4
+        tmp = self.size
+        if "adtl" in tab:
+            for field in tab:
+                if tab.index(field) < tab.index("adtl") and field in self.data.adtl.Contents.__annotations__:
+                    exec("self.size += self.data.adtl.data.%s.size + 8" % field)
+        if self.size > tmp:
+            self.size += 4
         Chunk.write(self, file)
         self.data.write(file)
 
@@ -790,7 +834,7 @@ class ID3Chunk(Chunk):
         TRCK: INFOsubChunk          # oprogramowanie
         TCON: INFOsubChunk          # oprogramowanie
         TXXX: INFOsubChunk
-        unrecognized: INFOsubChunk  # nierozpoznany
+        unrecognized: list[INFOsubChunk]  # nierozpoznany
 
         def __repr__(self):
             list = "\t\t\tVersion: " + str(self.version) + "\n"
@@ -827,9 +871,14 @@ class ID3Chunk(Chunk):
             except AttributeError:
                 pass
             try:
-                list += str(self.unrecognized)
-            finally:
-                return list
+                for unrecognized in self.unrecognized:
+                    try:
+                        list += str(unrecognized)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+            return list
 
         def write(self, file):
             try:
@@ -889,8 +938,12 @@ class ID3Chunk(Chunk):
             except:
                 pass
             try:
-                file.write(self.unrecognized.id.encode(encoding='utf-8'))
-                file.write(self.unrecognized.data.data.encode(encoding='utf-8'))
+                for unrecognized in self.unrecognized:
+                    try:
+                        file.write(unrecognized.id.encode(encoding='utf-8'))
+                        file.write(unrecognized.data.data.encode(encoding='utf-8'))
+                    except AttributeError:
+                        pass
             except Exception:
                 pass
 
@@ -912,10 +965,15 @@ class ID3Chunk(Chunk):
                 Optional.update({index: subid})
                 index += 1
             else:
-                self.data.unrecognized = INFOsubChunk(subid, sizesubid, data[start + 8:start + sizesubid + 8])
-                Optional.update({index: self.id + self.data.unrecognized.id})
+                self.data.unrecognized.append(INFOsubChunk(subid, sizesubid, data[start + 8:start + sizesubid + 8]))
+                Optional.update({index: self.id + self.data.unrecognized[-1].id})
                 index += 1
             start = start + sizesubid + 8
+
+        if len(data) > 4 + start:
+            self.data.unrecognized.append(INFOsubChunk(bytes.decode(data[start:start + 4]), len(data[start + 4:]), data[start + 4:]))
+            Optional.update({index: self.id + self.data.unrecognized[-1].id})
+            index += 1
 
     def __repr__(self):
         return Chunk.__repr__(self) + "\n" + str(self.data)
@@ -925,6 +983,12 @@ class ID3Chunk(Chunk):
     pass
 
     def write(self, file):
+        self.size = 0
+        if "ID3" in tab:
+            for field in tab:
+                if tab.index(field) < tab.index("ID3") and field in self.Contents.__annotations__:
+                    exec("self.size += self.data.%s.size + 8" % field)
+
         file.write(self.id.encode(encoding='utf-8'))
         file.write(self.data.version.to_bytes(1, byteorder="little", signed=True))
         file.write(self.size.to_bytes(6, byteorder='big', signed=True))
@@ -934,7 +998,7 @@ class ID3Chunk(Chunk):
 class id3Chunk(Chunk):
     class Contents:
         ID3: ID3Chunk
-        unrecognized: INFOsubChunk
+        unrecognized: list[ID3Chunk]
 
         def __repr__(self):
             list = ""
@@ -943,9 +1007,14 @@ class id3Chunk(Chunk):
             except AttributeError:
                 pass
             try:
-                list += str(self.unrecognized)
-            finally:
-                return list
+                for unrecognized in self.unrecognized:
+                    try:
+                        list += str(unrecognized)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+            return list
 
         pass
 
@@ -955,11 +1024,12 @@ class id3Chunk(Chunk):
                     self.ID3.write(file)
             except Exception:
                 pass
-            try:
-                file.write(self.unrecognized.id.encode(encoding='utf-8'))
-                file.write(self.unrecognized.data.data.encode(encoding='utf-8'))
-            except Exception:
-                pass
+            for unrecognized in self.unrecognized:
+                try:
+                    file.write(unrecognized.id.encode(encoding='utf-8'))
+                    file.write(unrecognized.data.data.encode(encoding='utf-8'))
+                except AttributeError:
+                    pass
 
     data: Contents
 
@@ -970,19 +1040,23 @@ class id3Chunk(Chunk):
         start = 0
         while start < data.index(data[-1]):
             subid = bytes.decode(data[start:start + 3])
-            if subid == "ID3":
+            if len(subid):
                 version = data[start+3]
                 subsize = int.from_bytes(data[start + 4:start + 10], byteorder="big")
+            if subid == "ID3":
                 self.data.ID3 = ID3Chunk(subid, subsize, data[start + 10:start + size], version)
                 Optional.update({index: self.data.ID3.id})
                 index += 1
             else:
-                self.data.unrecognized = INFOsubChunk(subid, len(data[start + 4:start + size]),
-                                                      data[start + 4:start + size])
-                Optional.update({index: self.id + self.data.unrecognized.id})
+                self.data.unrecognized.append(ID3Chunk(subid, subsize, data[start + 10:start + size], version))
+                Optional.update({index: self.id + self.data.unrecognized[-1].id})
                 index += 1
-
             start = start + size
+
+        if len(data) > 4 + start:
+            self.data.unrecognized.append(ID3Chunk(bytes.decode(data[start:start + 3]), len(data[start + 4:]), data[start + 4:], data[start+3]))
+            Optional.update({index: self.id + self.data.unrecognized[-1].id})
+            index += 1
 
     def __repr__(self):
         return Chunk.__repr__(self) + "\n" + str(self.data)
@@ -992,9 +1066,14 @@ class id3Chunk(Chunk):
     pass
 
     def write(self, file):
+        self.size = 0
+        if "ID3" in tab:
+            for field in tab:
+                if tab.index(field) < tab.index("ID3") and field in self.data.ID3.Contents.__annotations__:
+                    exec("self.size += self.data.ID3.data.%s.size + 8" % field)
+        self.size += 11
         Chunk.write(self, file)
         self.data.write(file)
-        file.write((0).to_bytes(1, byteorder="little", signed=True))
 
 
 # class WavFile:
@@ -1244,4 +1323,7 @@ try:
         cueChunk.write(file)
 except Exception:
     pass
+
+if 'id3 ' in tab:
+    file.write((0).to_bytes(1, byteorder="little", signed=True))
 file.close()
