@@ -556,9 +556,9 @@ class ADTLsubChunk(Chunk):
 
 class ADTLChunk(Chunk):
     class Contents:
-        labl: ADTLsubChunk
-        note: ADTLsubChunk
-        ltxt: ADTLsubChunk
+        labl: ADTLsubChunk          # nazwy znaczników (cue)
+        note: ADTLsubChunk          # opisy znaczników (cue)
+        ltxt: ADTLsubChunk          # informacje dodatkowe znaczników (cue)
         unrecognized = []           # nierozpoznany
 
         def __repr__(self):
@@ -642,8 +642,8 @@ class ADTLChunk(Chunk):
 
 class LISTChunk(Chunk):
     class Contents:
-        INFO: INFOChunk
-        adtl: ADTLChunk
+        INFO: INFOChunk             # informacje o utworze
+        adtl: ADTLChunk             # informacje o znacznikach w utworze
         unrecognized = []           # nierozpoznany
 
         def __repr__(self):
@@ -951,7 +951,7 @@ class ID3Chunk(Chunk):
 
 class id3Chunk(Chunk):
     class Contents:
-        ID3: ID3Chunk
+        ID3: ID3Chunk               # informacje o utworze
         unrecognized = []           # nierozpoznany
 
         def __repr__(self):
