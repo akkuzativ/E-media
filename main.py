@@ -269,6 +269,7 @@ class INFOChunk(Chunk):
             try:
                 for unrecognized in self.unrecognized:
                     try:
+                        list += "\t\t\tNierozpoznany:\n"
                         list += str(unrecognized)
                     except Exception:
                         pass
@@ -578,6 +579,7 @@ class ADTLChunk(Chunk):
             try:
                 for unrecognized in self.unrecognized:
                     try:
+                        list += "\t\t\tNierozpoznany:\n"
                         list += str(unrecognized)
                     except Exception:
                         pass
@@ -658,6 +660,7 @@ class LISTChunk(Chunk):
             try:
                 for unrecognized in self.unrecognized:
                     try:
+                        list += "\t\tNierozpoznany:\n"
                         list += str(unrecognized)
                     except Exception:
                         pass
@@ -837,6 +840,7 @@ class ID3Chunk(Chunk):
             try:
                 for unrecognized in self.unrecognized:
                     try:
+                        list += "\t\t\tNierozpoznany:\n"
                         list += str(unrecognized)
                     except Exception:
                         pass
@@ -960,6 +964,7 @@ class id3Chunk(Chunk):
             try:
                 for unrecognized in self.unrecognized:
                     try:
+                        list += "\t\tNierozpoznany:\n"
                         list += str(unrecognized)
                     except Exception:
                         pass
