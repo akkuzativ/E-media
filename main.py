@@ -5,9 +5,7 @@ import audioop
 import numpy as np
 import os
 
-Optional = {}
-index = 1
-tab = []
+Optional, index, tab, unrecognizedChunk = {}, 1, [], []
 
 class Chunk:
     def __init__(self, id: str, size: int, data=None):
@@ -106,6 +104,7 @@ class FmtChunk(Chunk):
             if data.index(data[-1]) > 5:
                 ret += f"\n\t\tNumber of extra format bytes {self.num_extra_format_bytes}"
                 ret += f"\n\t\tExtra format bytes {self.extra_format_bytes}"
+            ret += "\n"
             return ret
 
         pass
@@ -1115,9 +1114,8 @@ while 1:
         dataChunk = DataChunk(id, size, data)
         # print(dataChunk)
     else:
-        data = [f.read(size)]
-        unrecognizedChunk = Chunk(id, size, data)
-        print(unrecognizedChunk)
+        data = f.read(size)
+        unrecognizedChunk.append(Chunk(id, size, data))
 
 f.close()
 
@@ -1127,16 +1125,37 @@ def display_information(riffChunk: RIFFHeader, dataChunk: DataChunk, fmtChunk: F
     print(riffChunk)
     print(fmtChunk)
     # print(dataChunk) # też? todo
-    if 'LIST' in Optional.values():
-        print(listChunk)
-    if 'id3 ' in Optional.values():
-        print(id3Chunk)
-    if 'fact' in Optional.values():
-        print(factChunk)
     try:
-        print(cueChunk)
+        if 'LIST' in Optional.values():
+            print(listChunk)
     except Exception:
         pass
+    try:
+        if 'id3 ' in Optional.values():
+            print(id3Chunk)
+    except Exception:
+        pass
+    try:
+        if 'fact' in Optional.values():
+            print(factChunk)
+    except Exception:
+        pass
+    try:
+        if 'cue ' in Optional.values():
+            print(cueChunk)
+    except Exception:
+        pass
+    try:
+        for unrecognized in unrecognizedChunk:
+            try:
+                print("\tNierozpoznany:")
+                print(f"\tChunk ID: {unrecognized.id} Chunk size: {unrecognized.size}")
+                print(f"\t\tData: {unrecognized.data}")
+            except Exception:
+                pass
+    except Exception:
+        pass
+
 
 
 
@@ -1226,14 +1245,14 @@ def display_phase_spectrum(dataChunk: DataChunk, fmtChunk: FmtChunk):
 
 
 display_information(riffChunk, dataChunk, fmtChunk, Optional)
-# display_waveform(dataChunk, fmtChunk)
-# display_spectrogram(dataChunk, fmtChunk)
-# display_amplitude_spectrum(dataChunk, fmtChunk)
+display_waveform(dataChunk, fmtChunk)
+display_spectrogram(dataChunk, fmtChunk)
+display_amplitude_spectrum(dataChunk, fmtChunk)
 
 ###
 # zapis
 
-print("Podaj indeksy które metadane zapisać do pliku, zakończ wybór wpisując literę:")
+print("\n\nPodaj indeksy które metadane zapisać do pliku, zakończ wybór wpisując literę:")
 print("(Pamiętaj, żeby podać wszystkie chunki zawierające chunk, który chcesz zapisać):")
 print(Optional)
 while True:
