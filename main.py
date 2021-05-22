@@ -1124,7 +1124,7 @@ def display_information(riffChunk: RIFFHeader, dataChunk: DataChunk, fmtChunk: F
     print("Pomyślnie wczytano plik")
     print(riffChunk)
     print(fmtChunk)
-    # print(dataChunk) # też? todo
+    print(f"\tChunk ID: {dataChunk.id} Chunk size: {dataChunk.size}\n")
     try:
         if 'LIST' in Optional.values():
             print(listChunk)
