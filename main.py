@@ -4,6 +4,7 @@ import struct
 import audioop
 import numpy as np
 import os
+import math
 
 Optional, index, tab, unrecognizedChunk = {}, 1, [], []
 
@@ -761,10 +762,11 @@ class DataChunk(Chunk):
                     else:
                         return bytearray(struct.pack("d", sample))
                 elif fmtChunk.data.audio_format == 6:
-                    return audioop.lin2alaw(sample, sample_len)
+                    return audioop.lin2alaw(int.to_bytes(sample, byteorder="little",
+                                                         signed=True, length=sample_len), sample_len)
                 elif fmtChunk.data.audio_format == 7:
-                    return audioop.lin2ulaw(sample, sample_len)
-
+                    return audioop.lin2ulaw(int.to_bytes(sample, byteorder="little",
+                                                         signed=True, length=sample_len), sample_len)
             for channel in self.samples:
                 for sample in channel:
                     bytes_sample = sample_conversion(sample, fmtChunk)
@@ -1035,7 +1037,7 @@ class id3Chunk(Chunk):
 
 size = 0
 sample_len = 0
-f = open(file="data/sine440-list.wav", mode="rb")
+f = open(file="data/sine404-list2.wav", mode="rb")
 
 while 1:
     id = bytes.decode(f.read(4))
@@ -1158,22 +1160,53 @@ def display_information(riffChunk: RIFFHeader, dataChunk: DataChunk, fmtChunk: F
 
 
 
+def normalize_samples(samples: list, fmtChunk: FmtChunk):
+    samples = np.array(samples)
 
-def display_waveform(dataChunk: DataChunk, fmtChunk: FmtChunk):
+    np.seterr(divide='ignore')
+
+    if fmtChunk.data.bits_per_sample >= 8:
+        sample_len = int(fmtChunk.data.bits_per_sample / 8)
+    else:
+        sample_len = int(fmtChunk.data.bits_per_sample / 4)
+
+    if fmtChunk.data.audio_format == 1:
+        if sample_len == 1:
+            return samples/(2**(fmtChunk.data.bits_per_sample-1)) - 1
+        else:
+            return samples/(2**(fmtChunk.data.bits_per_sample-1))
+    if fmtChunk.data.audio_format == 3:
+        return samples
+    if fmtChunk.data.audio_format == 6 or fmtChunk.data.audio_format == 7:
+        return samples/(2**(fmtChunk.data.bits_per_sample-1))
+
+
+def display_waveform(dataChunk: DataChunk, fmtChunk: FmtChunk, lower: int = None, upper: int = None):
     plt.close()
+
     channels = np.array(dataChunk.data.samples)
-    time_axis = np.array(range(0, len(channels[0])))/fmtChunk.data.sample_rate
+
+    if lower is None or upper is None:
+        lower = 0
+        upper = len(channels[0])
+    elif lower < 0 or upper < 0 or lower > len(channels[0]) or upper > len(channels[0]):
+        lower = 0
+        upper = len(channels[0])
+
+
+    time_axis = (np.array(range(0, len(channels[0])))/fmtChunk.data.sample_rate)[lower:upper]
     figure, axes = plt.subplots(len(channels), 1, sharex=False, sharey=True)
+
     if fmtChunk.data.num_channels == 1:
-        channel = channels[0]
-        channel = channel / (2 ** (fmtChunk.data.bits_per_sample - 1))
+        channel = channels[0][lower:upper]
+        channel = normalize_samples(channel, fmtChunk)
         axes.plot(time_axis, channel)
         axes.set_ylabel("Znormalizowana amplituda")
         axes.set_xlabel("Czas [s]")
     else:
         for channel_index, channel in enumerate(channels):
-            if fmtChunk.data.audio_format == 1:
-                channel = channel/(2**(fmtChunk.data.bits_per_sample-1))
+            channels = channel[lower:upper]
+            channel = normalize_samples(channel, fmtChunk)
             axes[channel_index].plot(time_axis, channel)
             axes[channel_index].set_title(f"Kanał {channel_index+1}")
             axes[channel_index].set_ylabel("Znormalizowana amplituda")
@@ -1186,19 +1219,22 @@ def display_waveform(dataChunk: DataChunk, fmtChunk: FmtChunk):
 def display_spectrogram(dataChunk: DataChunk, fmtChunk: FmtChunk):
     plt.close()
     channels = np.array(dataChunk.data.samples)
-    time_axis = np.array(range(0, len(channels[0])))/fmtChunk.data.sample_rate
+
+
+    time_axis = (np.array(range(0, len(channels[0])))/fmtChunk.data.sample_rate)[lower:upper]
     figure, axes = plt.subplots(len(channels), 1, sharex=False, sharey=True)
+
+
     if fmtChunk.data.num_channels == 1:
         channel = channels[0]
-        channel = channel / (2 ** (fmtChunk.data.bits_per_sample - 1))
+        channel = normalize_samples(channel, fmtChunk)
         axes.specgram(x=channel, Fs=fmtChunk.data.sample_rate, scale="dB")
         axes.set_yscale("symlog")
         axes.set_ylabel("Częstotliwość [Hz]")
         axes.set_xlabel("Czas [s]")
     else:
         for channel_index, channel in enumerate(channels):
-            if fmtChunk.data.audio_format == 1:
-                channel = channel/(2**(fmtChunk.data.bits_per_sample-1))
+            channel = normalize_samples(channel, fmtChunk)
             axes[channel_index].specgram(x=channel, Fs=fmtChunk.data.sample_rate, scale="dB")
             axes[channel_index].set_yscale("symlog")
             axes[channel_index].set_title(f"Kanał {channel_index+1}")
@@ -1209,25 +1245,33 @@ def display_spectrogram(dataChunk: DataChunk, fmtChunk: FmtChunk):
     plt.show(block=True)
 
 
-def display_amplitude_spectrum(dataChunk: DataChunk, fmtChunk: FmtChunk):
+def display_amplitude_spectrum(dataChunk: DataChunk, fmtChunk: FmtChunk, lower: int = None, upper: int = None):
     plt.close()
     channels = np.array(dataChunk.data.samples)
-    time_axis = np.array(range(0, len(channels[0])))/fmtChunk.data.sample_rate
+
+    if lower is None or upper is None:
+        lower = 0
+        upper = len(channels[0])
+    elif lower < 0 or upper < 0 or lower > len(channels[0]) or upper > len(channels[0]):
+        lower = 0
+        upper = len(channels[0])
+
+    time_axis = (np.array(range(0, len(channels[0])))/fmtChunk.data.sample_rate)[lower:upper]
     figure, axes = plt.subplots(len(channels), 1, sharex=False, sharey=True)
+
     if fmtChunk.data.num_channels == 1:
-        channel = channels[0]
-        channel = channel / (2 ** (fmtChunk.data.bits_per_sample - 1))
-        axes.plot(time_axis, channel)
-        amplitude = scipy.fft.rfft(channel)
+        channel = channels[0][lower:upper]
+        channel = normalize_samples(channel, fmtChunk)
+        spectrum = scipy.fft.rfft(channel)
         frequencies = scipy.fft.rfftfreq(len(channel), 1 / fmtChunk.data.sample_rate)
-        axes.plot(frequencies, np.abs(amplitude))
+        axes.plot(frequencies, np.abs(spectrum))
         axes.set_xscale("symlog")
         axes.set_ylabel("Amplituda")
         axes.set_xlabel("Częstotliwość [Hz]")
     else:
         for channel_index, channel in enumerate(channels):
-            if fmtChunk.data.audio_format == 1:
-                channel = channel/(2**(fmtChunk.data.bits_per_sample-1))
+            channel = channel[lower:upper]
+            channel = normalize_samples(channel, fmtChunk)
             amplitude = scipy.fft.rfft(channel)
             frequencies = scipy.fft.rfftfreq(len(channel), 1/fmtChunk.data.sample_rate)
             axes[channel_index].plot(frequencies, np.abs(amplitude))
@@ -1240,14 +1284,66 @@ def display_amplitude_spectrum(dataChunk: DataChunk, fmtChunk: FmtChunk):
     plt.show(block=True)
 
 
-def display_phase_spectrum(dataChunk: DataChunk, fmtChunk: FmtChunk):
-    pass
+def display_phase_spectrum(dataChunk: DataChunk, fmtChunk: FmtChunk, lower: int = None, upper: int = None):
+    plt.close()
+    channels = np.array(dataChunk.data.samples)
+
+    if lower is None or upper is None:
+        lower = 0
+        upper = len(channels[0])
+    elif lower < 0 or upper < 0 or lower > len(channels[0]) or upper > len(channels[0]):
+        lower = 0
+        upper = len(channels[0])
+
+    time_axis = (np.array(range(0, len(channels[0])))/fmtChunk.data.sample_rate)[lower:upper]
+    figure, axes = plt.subplots(len(channels), 1, sharex=False, sharey=True)
+
+    if fmtChunk.data.num_channels == 1:
+        channel = channels[0][lower:upper]
+        normalize_samples(channel, fmtChunk)
+        amplitude = scipy.fft.rfft(channel)
+        frequencies = scipy.fft.rfftfreq(len(channel), 1 / fmtChunk.data.sample_rate)
+        axes.plot(frequencies, np.angle(amplitude))
+        axes.set_xscale("symlog")
+        axes.set_ylabel("Przesunięcie fazowe [rad]")
+        axes.set_xlabel("Częstotliwość [Hz]")
+    else:
+        for channel_index, channel in enumerate(channels):
+            channel = channel[lower:upper]
+            channel = normalize_samples(channel, fmtChunk)
+            spectrum = scipy.fft.rfft(channel)
+            frequencies = scipy.fft.rfftfreq(len(channel), 1/fmtChunk.data.sample_rate)
+            axes[channel_index].plot(frequencies, np.angle(spectrum))
+            axes[channel_index].set_xscale("symlog")
+            axes[channel_index].set_title(f"Kanał {channel_index+1}")
+            axes[channel_index].set_ylabel("Przesunięcie fazowe [rad]")
+            axes[channel_index].set_xlabel("Częstotliwość [Hz]")
+    plt.suptitle("Widmo fazowe sygnału wewnątrz pliku")
+    plt.tight_layout()
+    plt.show(block=True)
 
 
 display_information(riffChunk, dataChunk, fmtChunk, Optional)
-display_waveform(dataChunk, fmtChunk)
+
+
+print("\n\nWybierz przedział próbek, z których zostanie narysowany przebieg oraz widma (najpierw dolny indeks, następnie górny, w przypadku nieprawidłowych indeksów wybrana zostanie całość)")
+print(f"(min: 0 --- max: {len(dataChunk.data.samples[0])-1})")
+print("Dolny indeks: ", end="")
+try:
+    lower = int(input())
+except:
+    lower = None
+print("Górny indeks: ", end="")
+try:
+    upper = int(input())
+except:
+    upper = None
+
+
+display_waveform(dataChunk, fmtChunk, lower, upper)
 display_spectrogram(dataChunk, fmtChunk)
-display_amplitude_spectrum(dataChunk, fmtChunk)
+display_amplitude_spectrum(dataChunk, fmtChunk, lower, upper)
+display_phase_spectrum(dataChunk, fmtChunk, lower, upper)
 
 ###
 # zapis
