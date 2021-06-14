@@ -5,7 +5,9 @@ import audioop
 import numpy as np
 import os
 import math
+import RSA
 
+RSA.fun()
 Optional, index, tab, unrecognizedChunk = {}, 1, [], []
 
 class Chunk:
@@ -1325,7 +1327,7 @@ def display_phase_spectrum(dataChunk: DataChunk, fmtChunk: FmtChunk, lower: int 
 
 display_information(riffChunk, dataChunk, fmtChunk, Optional)
 
-
+RSA.fun()
 print("\n\nWybierz przedział próbek, z których zostanie narysowany przebieg oraz widma (najpierw dolny indeks, następnie górny, w przypadku nieprawidłowych indeksów wybrana zostanie całość)")
 print(f"(min: 0 --- max: {len(dataChunk.data.samples[0])-1})")
 print("Dolny indeks: ", end="")
