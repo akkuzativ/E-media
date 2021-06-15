@@ -804,9 +804,9 @@ class ID3Chunk(Chunk):
         TIT2: INFOsubChunk          # tytuł albumu
         TDRC: INFOsubChunk          # gatunek
         TALB: INFOsubChunk          # komentarze
-        TRCK: INFOsubChunk          # oprogramowanie
-        TCON: INFOsubChunk          # oprogramowanie
-        TXXX: INFOsubChunk          # oprogramowanie
+        TRCK: INFOsubChunk          # sciezka
+        TCON: INFOsubChunk          # gatunek
+        TXXX: INFOsubChunk          # przerwa
         unrecognized = []           # nierozpoznany
 
         def __repr__(self):
@@ -1030,7 +1030,7 @@ class id3Chunk(Chunk):
 
 size = 0
 sample_len = 0
-f = open(file="data/sine440-shifted.wav", mode="rb")
+f = open(file="data/sine440-list.wav", mode="rb")
 
 while 1:
     id = bytes.decode(f.read(4))
