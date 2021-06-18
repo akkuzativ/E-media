@@ -417,7 +417,7 @@ class CuesubChunk:
 class CueChunk(Chunk):
     class Contents:
         numPoints: int
-        Points: list[CuesubChunk]
+        #Points: list[CuesubChunk]
 
         def __init__(self, numPoints: int):
             self.numPoints = numPoints
