@@ -61,53 +61,9 @@ while 1:
         Optional.update({index: cueChunk.id})
         index += 1
     elif id == "data":
-        if int(fmtChunk.data.bits_per_sample / 8) > 0:
-            sample_len = int(fmtChunk.data.bits_per_sample / 8)
-        else:
-            sample_len = 0
-
-        adpcm_last_state = None
 
         raw_samples = f.read(size)
-        samples = []
-
-        if sample_len > 0:
-            for i in range(int(size / sample_len)):
-                sample = raw_samples[i * sample_len:i * sample_len + sample_len]
-                if fmtChunk.data.audio_format == 1:
-                    if sample_len == 1:
-                        converted_sample = int.from_bytes(sample, byteorder="little", signed=False)
-                    else:
-                        converted_sample = int.from_bytes(sample, byteorder="little", signed=True)
-                elif fmtChunk.data.audio_format == 3:
-                    if sample_len == 4:
-                        converted_sample = struct.unpack("f", sample)[0]
-                    else:
-                        converted_sample = struct.unpack("d", sample)[0]
-                elif fmtChunk.data.audio_format == 6:
-                    converted_sample = int.from_bytes(audioop.alaw2lin(sample, sample_len), byteorder="little", signed=True)
-                elif fmtChunk.data.audio_format == 7:
-                    converted_sample = int.from_bytes(audioop.ulaw2lin(sample, sample_len), byteorder="little", signed=True)
-                else:
-                    print("Format zapisu danych w pliku nie jest wspierany")
-                    raise Exception
-                samples.append(converted_sample)
-        else:
-            if fmtChunk.data.audio_format == 2:
-                ret = audioop.adpcm2lin(raw_samples, fmtChunk.data.bits_per_sample, None)
-                samples_lin = ret[0]
-                for i in range(int(len(samples_lin)/8)):
-                    sample = samples_lin[i*8:i*8+8]
-                    converted_sample = int.from_bytes(sample, byteorder="little", signed=True)
-                    samples.append(converted_sample)
-            else:
-                print("Format zapisu danych w pliku nie jest wspierany")
-                raise Exception
-
-        channels = []
-        for c in range(fmtChunk.data.num_channels):
-            channels.append(samples[c::fmtChunk.data.num_channels])
-        data = channels
+        data = DataChunk.Contents.bytes_to_channels(fmtChunk, raw_samples, size)
         dataChunk = DataChunk(id, size, data)
         # print(dataChunk)
     else:
