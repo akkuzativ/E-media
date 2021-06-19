@@ -54,11 +54,11 @@ def divide_data_into_blocks(message: bytearray, preferred_block_size: int) -> li
     message_array = bytearray(message)
     number_of_blocks, block_leftover_len = divmod(len(message_array), preferred_block_size)
     blocks = []
-    for i in range(0, number_of_blocks - 1):
+    for i in range(0, number_of_blocks):
         block = message_array[i * preferred_block_size: i * preferred_block_size + preferred_block_size]
         blocks.append(block)
     if block_leftover_len > 0:
-        leftover = message_array[len(message_array) - 1 - block_leftover_len: len(message_array) + 1]
+        leftover = message_array[len(message_array) - block_leftover_len: len(message_array) + 1]
         blocks.append(leftover)
     return blocks
 

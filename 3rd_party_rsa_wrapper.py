@@ -61,13 +61,13 @@ def decrypt_cbc(message: bytes, private_key: rsa.PrivateKey, init_vector: int) -
     decrypted_blocks = list()
     for block in blocks:
         decrypted_block = rsa.decrypt(block, private_key)
-        previous_vector_as_number = int.from_bytes(previous_vector[0:len(block)], byteorder="little")
+        previous_vector_as_number = int.from_bytes(previous_vector[0:len(decrypted_block)], byteorder="little")
         decrypted_block_as_number = int.from_bytes(decrypted_block, "little")
-        decrypted_block = (decrypted_block_as_number ^ previous_vector_as_number).to_bytes(length=len(block), byteorder="little")
+        decrypted_block = (decrypted_block_as_number ^ previous_vector_as_number).to_bytes(length=len(decrypted_block), byteorder="little")
         decrypted_blocks.append(decrypted_block)
         previous_vector = block
-    encrypted_message = b"".join(decrypted_blocks)
-    return encrypted_message
+    decrypted_message = b"".join(decrypted_blocks)
+    return decrypted_message
 
 
 def encrypt_data_chunk(data_chunk: wav_chunks.DataChunk, fmt_chunk: wav_chunks.FmtChunk) -> wav_chunks.DataChunk:
@@ -88,5 +88,5 @@ if __name__ == "__main__":
     # decrypted = decrypt_ebc(crypto, priv)
     # print(decrypted.decode("utf-8"))
     crypto, init = encrypt_cbc(bytearray(message.encode("utf-8")), pub)
-    decrypted = decrypt_cbc(bytearray(message.encode("utf-8")), priv, init)
+    decrypted = decrypt_cbc(crypto, priv, init)
     print(decrypted.decode("utf-8"))
