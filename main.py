@@ -1,11 +1,7 @@
 import rsa
 
-
-from wav_chunks import *
 from display_functions import *
-import rsa_lib_wrapper
-import encryption_utils
-
+from rsa_tools import rsa_lib_wrapper, encryption_utils
 
 # Optional, index, tab, unrecognizedChunk = {}, 1, [], []
 
@@ -19,7 +15,7 @@ cueChunk = None
 
 decrypt_file_contents = True
 encryption_data_file_name = "encryption_data.yaml"
-f = open(file="data/sine440.wav", mode="rb")
+f = open(file="nowy.wav", mode="rb")
 
 while 1:
     id = bytes.decode(f.read(4))
@@ -63,9 +59,9 @@ while 1:
         data = f.read(size)
         if decrypt_file_contents:
             encryption_data = encryption_utils.read_rsa_data_from_file(encryption_data_file_name)
-            data = rsa_lib_wrapper.decrypt_ebc(data, private_key=)
-        data = DataChunk.Contents.bytes_to_channels(fmtChunk, data, size)
-        dataChunk = DataChunk(id, size, data)
+            data = rsa_lib_wrapper.decrypt_ebc(data, private_key=rsa.PrivateKey(*encryption_data))
+        data = DataChunk.Contents.bytes_to_channels(fmtChunk, data, len(data))
+        dataChunk = DataChunk(id, len(data), data)
     else:
         data = f.read(size)
         unrecognizedChunk.append(Chunk(id, size, data))
@@ -112,9 +108,11 @@ while True:
 samples_as_bytes = DataChunk.Contents.channels_to_bytes(fmtChunk, dataChunk.data)
 encrypted_samples = rsa_lib_wrapper.encrypt_ebc(samples_as_bytes, public_key=pub)
 
+encryption_utils.write_rsa_data_to_file(encryption_data_file_name, rsa_lib_wrapper.private_key_to_rsa_data(priv))
+
 dataChunk = DataChunk(dataChunk.id, len(encrypted_samples), DataChunk.Contents.bytes_to_channels(fmtChunk, encrypted_samples, dataChunk.size))
 
-file = open("data/sine440.wav", "wb")
+file = open("nowy.wav", "wb")
 riffChunk.write(file)
 fmtChunk.write(file)
 dataChunk.write(file, fmtChunk)
