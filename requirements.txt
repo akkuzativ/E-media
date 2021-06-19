@@ -1,2 +1,6 @@
 matplotlib
 numpy
+rsa
+scipy
+matplotlib
+pyyaml

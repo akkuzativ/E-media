@@ -1,3 +1,12 @@
+from matplotlib import pyplot as plt
+import scipy.fft
+import struct
+import audioop
+import numpy as np
+
+Optional, index, tab, unrecognizedChunk, data = {}, 1, [], [], []
+
+
 class Chunk:
     def __init__(self, id: str, size: int, data=None):
         self.id = id
@@ -92,7 +101,7 @@ class FmtChunk(Chunk):
             ret += f"\n\t\tByte rate: {self.byte_rate}"
             ret += f"\n\t\tBlock align: {self.block_align}"
             ret += f"\n\t\tBits per sample: {self.bits_per_sample}"
-            if data.index(data[-1]) > 5:
+            if len(data) > 5:
                 ret += f"\n\t\tNumber of extra format bytes {self.num_extra_format_bytes}"
                 ret += f"\n\t\tExtra format bytes {self.extra_format_bytes}"
             ret += "\n"
@@ -408,7 +417,7 @@ class CuesubChunk:
 class CueChunk(Chunk):
     class Contents:
         numPoints: int
-        Points: list[CuesubChunk]
+        #Points: list[CuesubChunk]
 
         def __init__(self, numPoints: int):
             self.numPoints = numPoints
@@ -734,33 +743,92 @@ class DataChunk(Chunk):
 
         pass
 
-        def write(self, file, fmtChunk: FmtChunk):
+        @staticmethod
+        def bytes_to_channels(fmtChunk: FmtChunk, raw_samples: bytes, size) -> list:
+            if int(fmtChunk.data.bits_per_sample / 8) > 0:
+                sample_len = int(fmtChunk.data.bits_per_sample / 8)
+            else:
+                sample_len = 0
 
-            def sample_conversion(sample, fmtChunk: FmtChunk):
+            samples = []
+
+            if sample_len > 0:
+                for i in range(int(size / sample_len)):
+                    sample = raw_samples[i * sample_len:i * sample_len + sample_len]
+                    if fmtChunk.data.audio_format == 1:
+                        if sample_len == 1:
+                            converted_sample = int.from_bytes(sample, byteorder="little", signed=False)
+                        else:
+                            converted_sample = int.from_bytes(sample, byteorder="little", signed=True)
+                    elif fmtChunk.data.audio_format == 3:
+                        if sample_len == 4:
+                            converted_sample = struct.unpack("f", sample)[0]
+                        else:
+                            converted_sample = struct.unpack("d", sample)[0]
+                    elif fmtChunk.data.audio_format == 6:
+                        converted_sample = int.from_bytes(audioop.alaw2lin(sample, sample_len), byteorder="little",
+                                                          signed=True)
+                    elif fmtChunk.data.audio_format == 7:
+                        converted_sample = int.from_bytes(audioop.ulaw2lin(sample, sample_len), byteorder="little",
+                                                          signed=True)
+                    else:
+                        print("Format zapisu danych w pliku nie jest wspierany")
+                        raise Exception
+                    samples.append(converted_sample)
+            else:
+                if fmtChunk.data.audio_format == 2:
+                    ret = audioop.adpcm2lin(raw_samples, fmtChunk.data.bits_per_sample, None)
+                    samples_lin = ret[0]
+                    for i in range(int(len(samples_lin) / 8)):
+                        sample = samples_lin[i * 8:i * 8 + 8]
+                        converted_sample = int.from_bytes(sample, byteorder="little", signed=True)
+                        samples.append(converted_sample)
+                else:
+                    print("Format zapisu danych w pliku nie jest wspierany")
+                    raise Exception
+
+            channels = []
+            for c in range(fmtChunk.data.num_channels):
+                channels.append(samples[c::fmtChunk.data.num_channels])
+            return channels
+
+        @staticmethod
+        def channels_to_bytes(fmtChunk: FmtChunk, contents) -> bytes:
+            combined_channels = [None] * (len(contents.samples) * len(contents.samples[0]))
+            for c in range(0, fmtChunk.data.num_channels):
+                combined_channels[c::fmtChunk.data.num_channels] = contents.samples[c]
+
+            bytes_sample = b""
+            bytes_samples = []
+
+            for sample in combined_channels:
                 if fmtChunk.data.bits_per_sample >= 8:
                     sample_len = int(fmtChunk.data.bits_per_sample / 8)
                 else:
                     sample_len = int(fmtChunk.data.bits_per_sample / 4)
                 if fmtChunk.data.audio_format == 1:
                     if sample_len == 1:
-                        return int.to_bytes(sample, byteorder="little", signed=False, length=sample_len)
+                        bytes_sample = int.to_bytes(sample, byteorder="little", signed=False, length=sample_len)
                     else:
-                        return int.to_bytes(sample, byteorder="little", signed=True, length=sample_len)
+                        bytes_sample = int.to_bytes(sample, byteorder="little", signed=True, length=sample_len)
                 elif fmtChunk.data.audio_format == 3:
                     if sample_len == 4:
-                        return bytearray(struct.pack("f", sample))
+                        bytes_sample = bytearray(struct.pack("f", sample))
                     else:
-                        return bytearray(struct.pack("d", sample))
+                        bytes_sample = bytearray(struct.pack("d", sample))
                 elif fmtChunk.data.audio_format == 6:
-                    return audioop.lin2alaw(int.to_bytes(sample, byteorder="little",
-                                                         signed=True, length=sample_len), sample_len)
+                    bytes_sample = audioop.lin2alaw(int.to_bytes(sample, byteorder="little",
+                                                                 signed=True, length=sample_len), sample_len)
                 elif fmtChunk.data.audio_format == 7:
-                    return audioop.lin2ulaw(int.to_bytes(sample, byteorder="little",
-                                                         signed=True, length=sample_len), sample_len)
-            for channel in self.samples:
-                for sample in channel:
-                    bytes_sample = sample_conversion(sample, fmtChunk)
-                    file.write(bytes_sample)
+                    bytes_sample = audioop.lin2ulaw(int.to_bytes(sample, byteorder="little",
+                                                                 signed=True, length=sample_len), sample_len)
+                else:
+                    raise Exception
+                bytes_samples.append(bytes_sample)
+            return b"".join(bytes_samples)
+
+        def write(self, file, fmtChunk: FmtChunk):
+            file.write(DataChunk.Contents.channels_to_bytes(fmtChunk, self))
 
 
     data: Contents
@@ -789,9 +857,9 @@ class ID3Chunk(Chunk):
         TIT2: INFOsubChunk          # tytuł albumu
         TDRC: INFOsubChunk          # gatunek
         TALB: INFOsubChunk          # komentarze
-        TRCK: INFOsubChunk          # oprogramowanie
-        TCON: INFOsubChunk          # oprogramowanie
-        TXXX: INFOsubChunk          # oprogramowanie
+        TRCK: INFOsubChunk          # sciezka
+        TCON: INFOsubChunk          # gatunek
+        TXXX: INFOsubChunk          # przerwa
         unrecognized = []           # nierozpoznany
 
         def __repr__(self):
@@ -1011,3 +1079,4 @@ class id3Chunk(Chunk):
         self.size += 11
         Chunk.write(self, file)
         self.data.write(file)
+
