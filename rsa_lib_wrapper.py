@@ -71,14 +71,3 @@ def decrypt_data_chunk(data_chunk: wav_chunks.DataChunk, fmt_chunk: wav_chunks.F
                        public_key) -> wav_chunks.DataChunk:
     message = wav_chunks.DataChunk.Contents.channels_to_bytes(fmt_chunk, data_chunk.data)
     pass
-
-
-if __name__ == "__main__":
-    message = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam tincidunt odio quis aliquet placerat. Curabitur varius odio blandit sollicitudin congue. Sed nec ex id leo lobortis facilisis nec vitae nunc. Etiam vulputate vitae enim quis pulvinar. Duis quis sollicitudin leo. Nunc et venenatis risus. Vivamus dui velit, egestas at lectus non, fringilla vehicula ligula. Aliquam a nisl sapien. Phasellus blandit nisi in nisi egestas accumsan. Morbi id rhoncus libero. Integer hendrerit diam est, at dapibus odio cursus ac. "
-    pub, priv = rsa.newkeys(128)
-    # crypto = encrypt_ebc(bytearray(message.encode("utf-8")), pub)
-    # decrypted = decrypt_ebc(crypto, priv)
-    # print(decrypted.decode("utf-8"))
-    crypto = encrypt_ebc(bytearray(message.encode("utf-8")), pub)
-    decrypted = decrypt_ebc(crypto, priv)
-    print(decrypted.decode("utf-8"))

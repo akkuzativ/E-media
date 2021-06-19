@@ -1,13 +1,11 @@
-from matplotlib import pyplot as plt
-import scipy.fft
-import struct
-import audioop
-import numpy as np
-import os
-import math
+import rsa
+
 
 from wav_chunks import *
 from display_functions import *
+import rsa_lib_wrapper
+import encryption_utils
+
 
 # Optional, index, tab, unrecognizedChunk = {}, 1, [], []
 
@@ -19,7 +17,8 @@ id3Chunk = None
 factChunk = None
 cueChunk = None
 
-
+decrypt_file_contents = True
+encryption_data_file_name = "encryption_data.yaml"
 f = open(file="data/sine440.wav", mode="rb")
 
 while 1:
@@ -61,11 +60,12 @@ while 1:
         Optional.update({index: cueChunk.id})
         index += 1
     elif id == "data":
-
-        raw_samples = f.read(size)
-        data = DataChunk.Contents.bytes_to_channels(fmtChunk, raw_samples, size)
+        data = f.read(size)
+        if decrypt_file_contents:
+            encryption_data = encryption_utils.read_rsa_data_from_file(encryption_data_file_name)
+            data = rsa_lib_wrapper.decrypt_ebc(data, private_key=)
+        data = DataChunk.Contents.bytes_to_channels(fmtChunk, data, size)
         dataChunk = DataChunk(id, size, data)
-        # print(dataChunk)
     else:
         data = f.read(size)
         unrecognizedChunk.append(Chunk(id, size, data))
@@ -107,7 +107,14 @@ while True:
     except Exception:
         break
 
-file = open("nowy.wav", "wb")
+
+(pub, priv) = rsa.key.newkeys(128)
+samples_as_bytes = DataChunk.Contents.channels_to_bytes(fmtChunk, dataChunk.data)
+encrypted_samples = rsa_lib_wrapper.encrypt_ebc(samples_as_bytes, public_key=pub)
+
+dataChunk = DataChunk(dataChunk.id, len(encrypted_samples), DataChunk.Contents.bytes_to_channels(fmtChunk, encrypted_samples, dataChunk.size))
+
+file = open("data/sine440.wav", "wb")
 riffChunk.write(file)
 fmtChunk.write(file)
 dataChunk.write(file, fmtChunk)
