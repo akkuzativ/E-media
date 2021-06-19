@@ -4,19 +4,16 @@ import math
 
 import wav_chunks
 import rsa
+import encryption_utils
 
 
-class EncryptionInfo:
-    def __init__(self, private_key, public_key, block_size):
-        self.private_key = private_key
-        self.public_key = public_key
-        self.block_size = block_size
+
 
 
 def encrypt_message(message: bytes):
     message_array = bytearray(message)
 
-    key_bits = 512
+    key_bits = 10
     block_size = key_bits // 16 - 1
 
     public_key, private_key = rsa.newkeys(key_bits)

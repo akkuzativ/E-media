@@ -3,3 +3,4 @@ numpy
 rsa
 scipy
 matplotlib
+pyyaml
