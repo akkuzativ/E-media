@@ -8,29 +8,21 @@ from encryption_utils import *
 def encrypt_ebc(message: bytes, public_key: rsa.PublicKey) -> bytes:
     message_array = bytearray(message)
     block_size = int(public_key.n.bit_length() / 8) - 11
-    number_of_blocks, block_leftover_len = divmod(len(message_array), block_size)
-    encrypted_blocks = []
-    for i in range(0, number_of_blocks - 1):
-        block = message_array[i * block_size: i * block_size + block_size]
-        block = rsa.encrypt(block, public_key)
-        encrypted_blocks.append(block)
-    if block_leftover_len > 0:
-        leftover = message_array[len(message_array) - 1 - block_leftover_len: len(message_array) + 1]
-        leftover = rsa.encrypt(leftover, public_key)
-        encrypted_blocks.append(leftover)
+    blocks = divide_data_into_blocks(message_array, block_size)
+    encrypted_blocks = list()
+    for block in blocks:
+        encrypted_blocks.append(rsa.encrypt(block, public_key))
     encrypted_message = b"".join(encrypted_blocks)
     return encrypted_message
 
 
 def decrypt_ebc(message: bytes, private_key: rsa.PrivateKey) -> bytes:
     message_array = bytearray(message)
-    number_of_blocks = int(len(message_array) / int(private_key.n.bit_length() / 8))
     block_size = int(private_key.n.bit_length() / 8)
-    decrypted_blocks = []
-    for i in range(0, number_of_blocks):
-        block = message_array[i * block_size: i * block_size + block_size]
-        block = rsa.decrypt(block, private_key)
-        decrypted_blocks.append(block)
+    blocks = divide_data_into_blocks(message_array, block_size)
+    decrypted_blocks = list()
+    for block in blocks:
+        decrypted_blocks.append(rsa.decrypt(block, private_key))
     decrypted_message = b"".join(decrypted_blocks)
     return decrypted_message
 
@@ -87,6 +79,6 @@ if __name__ == "__main__":
     # crypto = encrypt_ebc(bytearray(message.encode("utf-8")), pub)
     # decrypted = decrypt_ebc(crypto, priv)
     # print(decrypted.decode("utf-8"))
-    crypto, init = encrypt_cbc(bytearray(message.encode("utf-8")), pub)
-    decrypted = decrypt_cbc(crypto, priv, init)
+    crypto = encrypt_ebc(bytearray(message.encode("utf-8")), pub)
+    decrypted = decrypt_ebc(crypto, priv)
     print(decrypted.decode("utf-8"))
