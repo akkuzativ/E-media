@@ -55,7 +55,8 @@ def decrypt_cbc(message: bytes, private_key: rsa.PrivateKey, init_vector: int) -
         decrypted_block = rsa.decrypt(block, private_key)
         previous_vector_as_number = int.from_bytes(previous_vector[0:len(decrypted_block)], byteorder="little")
         decrypted_block_as_number = int.from_bytes(decrypted_block, "little")
-        decrypted_block = (decrypted_block_as_number ^ previous_vector_as_number).to_bytes(length=len(decrypted_block), byteorder="little")
+        decrypted_block = (decrypted_block_as_number ^ previous_vector_as_number).to_bytes(length=len(decrypted_block),
+                                                                                           byteorder="little")
         decrypted_blocks.append(decrypted_block)
         previous_vector = block
     decrypted_message = b"".join(decrypted_blocks)
