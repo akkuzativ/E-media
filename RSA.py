@@ -1,36 +1,37 @@
 import random
+import secrets
 import sys
 import math
 from random import randrange
 
 
-def rabinMiller(n, k=10):
-    if n == 2:
-            return True
-    if not n & 1:
-            return False
+def rabinMiller(num, iterations=100):
+    if num == 2:
+        return True
+    if not num & 1:
+        return False
 
-    def check(a, s, d, n):
-            x = pow(a, d, n)
-            if x == 1:
-                    return True
-            for i in range(1, s - 1):
-                    if x == n - 1:
-                            return True
-                    x = pow(x, 2, n)
-            return x == n - 1
+    def test(a, s, d, num):
+        x = pow(a, d, num)
+        if x == 1:
+            return True
+        for i in range(1, s - 1):
+            if x == num - 1:
+                return True
+            x = pow(x, 2, num)
+        return x == num - 1
 
     s = 0
-    d = n - 1
+    d = num - 1
 
     while d % 2 == 0:
-            d >>= 1
-            s += 1
+        d >>= 1  # dziel przez 2**1
+        s += 1
 
-    for i in range(1, k):
-            a = randrange(2, n - 1)
-            if not check(a, s, d, n):
-                    return False
+    for i in range(1, iterations):
+        a = randrange(2, num - 1)
+        if not test(a, s, d, num):
+            return False
     return True
 
 
@@ -58,9 +59,11 @@ def inverse(a, b):
         ly += oa  # If neg wrap modulo orignal a
     # return a , lx, ly  # Return only positive values
     return lx
-# def is_prime(n):
+
+
+# def is_prime(num):
 #     # lowPrimes is all primes (sans 2, which is covered by the bitwise and operator)
-#     # under 1000. taking n modulo each lowPrime allows us to remove a huge chunk
+#     # under 1000. taking num modulo each lowPrime allows us to remove a huge chunk
 #     # of composite numbers from our potential pool without resorting to Rabin-Miller
 #     lowPrimes = [3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97
 #         , 101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179
@@ -72,46 +75,42 @@ def inverse(a, b):
 #         , 673, 677, 683, 691, 701, 709, 719, 727, 733, 739, 743, 751, 757, 761, 769, 773
 #         , 787, 797, 809, 811, 821, 823, 827, 829, 839, 853, 857, 859, 863, 877, 881, 883
 #         , 887, 907, 911, 919, 929, 937, 941, 947, 953, 967, 971, 977, 983, 991, 997]
-#     if (n >= 3):
-#         if (n & 1 != 0):
+#     if (num >= 3):
+#         if (num & 1 != 0):
 #             for p in lowPrimes:
-#                 if (n == p):
+#                 if (num == p):
 #                     return True
-#                 if (n % p == 0):
+#                 if (num % p == 0):
 #                     return False
-#             return rabinMiller(n)
+#             return rabinMiller(num)
 #     return False
 
 
 def choose(size):
-    r = 100 * (math.log(size, 2) + 1)  # liczba prób
-    while r > 0:
-        # randrange tylko chwilowo
-        n = random.randrange(2 ** (size - 1), 2 ** (size))
-        r -= 1
-        # if is_prime(n) == True:
-        if rabinMiller(n) == True:
-                return n
+    for triesNum in reversed(range(int(100 * (math.log(size, 2) + 1)))):  # liczba prób
+        n = secrets.randbelow(2 ** (size))
+        while n <= 2 ** (size - 1):
+            n = secrets.randbelow(2 ** (size))
+        # if is_prime(num) == True:
+        if rabinMiller(n):
+            return n
 
 
 def choose_prime_numbers(size):
     # wybór liczb pierwszych
     p = choose(size)
-    print(p)
     q = choose(size)
-    print(q)
-    if p == q:
+    while p == q:
         print('p and q are equal. Recalculate q.')
         q = choose(size)
-        print(q)
 
-    # wyznaczenie n
-    # n = multiply(p, q)
-    n = p*q
+    # wyznaczenie num
+    # num = multiply(p, q)
+    n = p * q
 
     # zakres losowania
     # range = multiply((p-1),(q-1))
-    range = (p-1)*(q-1)
+    range = (p - 1) * (q - 1)
     g = 0
     while g != 1:
         # względnie pierwsza e
@@ -122,11 +121,12 @@ def choose_prime_numbers(size):
     # część prywatna
     d = inverse(e, range)
 
-    #Zwróć klucze odpowiednio publiczny i prywatny
+    # Zwróć klucze odpowiednio publiczny i prywatny
     return (e, n), (d, n)
 
 
 def fun():
     public, private = choose_prime_numbers(100)
+
 
 choose_prime_numbers(100)
