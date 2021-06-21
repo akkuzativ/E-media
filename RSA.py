@@ -2,7 +2,7 @@ import random
 import secrets
 import sys
 import math
-from random import randrange
+# from random import randrange
 
 
 def multiply(x, y):
@@ -87,7 +87,9 @@ def rabinMiller(num, iterations=100):
         r += 1
 
     for i in range(1, iterations):  # test
-        a = randrange(2, num - 1)
+        a = 0
+        while a == 0:
+            a = secrets.randbelow(num - 1)
         if not test(a, r, d, num):
             return False
     return True
@@ -130,9 +132,9 @@ def choose_prime_numbers(size):
     # zakres losowania
     drawrange = multiply((p-1),(q-1))  # Funkcja λ (lambda) Carmichaela
     g = 0
-    while g != 1:
+    while g != 1 or e == 0:
         # względnie pierwsza e
-        e = random.randrange(1, drawrange)
+        e = secrets.randbelow(drawrange)
         # czy względnie pierwsza (Euclid Algorithm)
         g = gcd(e, drawrange)
 
@@ -150,5 +152,5 @@ def RSA():  # to albo od razu choose_prime_numbers
     return public, private, prime
 
 
-public, private, prime = choose_prime_numbers(1000)
+public, private, prime = choose_prime_numbers(700)
 print(public, private, prime)
