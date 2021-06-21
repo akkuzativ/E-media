@@ -124,7 +124,7 @@ def choose_prime_numbers(size):
     p = choose(size)
     q = choose(size)
     while p == q or p is None or q is None:
-        print('p and q could be equal. Recalculate.')
+        print("p i q mogły wyjść równe. Przeliczanie od nowa.")
         p = choose(size)
         q = choose(size)
 
@@ -142,7 +142,7 @@ def choose_prime_numbers(size):
 
     # część prywatna
     d = inverse(e, drawrange)  # e^-1 mod drawrange
-    print(d)
+    #print(d)
     # d = inverse2(e, drawrange)  # e^-1 mod drawrange
     # print(d)
     # Zwróć klucze odpowiednio publiczny i prywatny i parę liczb

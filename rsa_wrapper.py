@@ -69,8 +69,7 @@ def encrypt_cbc(message: bytes, rsa_data: RsaData) -> (bytes, int, int):
     message_array = bytearray(message)
     block_size = 10
     init_vector = create_random_init_vector(rsa_data.n.bit_length())
-    init_vector = rsa_data.init_vector
-    previous_vector = init_vector.to_bytes(length=(rsa_data.n.bit_length()//8), byteorder="little")
+    previous_vector = init_vector.to_bytes(length=(rsa_data.n.bit_length()//8+1), byteorder="little")
     blocks = divide_data_into_blocks(message_array, block_size)
     encrypted_blocks = list()
     for block in blocks:
@@ -91,12 +90,11 @@ def decrypt_cbc(message: bytes, rsa_data: RsaData, init_vector: int, block_lefto
     message_array = bytearray(message)
     block_size = int(rsa_data.n.bit_length() / 8) + 1
     original_block_size = 10
-    previous_vector = init_vector.to_bytes(length=(rsa_data.n.bit_length()//8), byteorder="little")
+    previous_vector = init_vector.to_bytes(length=(rsa_data.n.bit_length()//8+1), byteorder="little")
     blocks = divide_data_into_blocks(message_array, block_size)
     decrypted_blocks = list()
     for block in blocks:
         decrypted_block = decrypt_block(block, rsa_data)
-        first_dec = bytearray(decrypted_block)
         previous_vector_as_number = int.from_bytes(previous_vector[0:len(decrypted_block)], byteorder="little")
         decrypted_block_as_number = int.from_bytes(decrypted_block, "little")
         decrypted_block = (decrypted_block_as_number ^ previous_vector_as_number).to_bytes(length=len(decrypted_block),
@@ -107,15 +105,3 @@ def decrypt_cbc(message: bytes, rsa_data: RsaData, init_vector: int, block_lefto
         decrypted_blocks[len(decrypted_blocks)-1] = decrypted_blocks[len(decrypted_blocks)-1][0:block_leftover_len]
     decrypted_message = b"".join(decrypted_blocks)
     return decrypted_message
-
-if __name__ == "__main__":
-    message = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla convallis turpis urna, a egestas neque ultrices vitae. Proin interdum varius ultricies. Sed eu mauris egestas leo congue ullamcorper."
-    rsa_data = new_keys(128)
-    pub, priv = rsa.key.newkeys(128)
-    #rsa_data = rsa_tools.rsa_lib_wrapper.private_key_to_rsa_data(priv)
-    #rsa_data = read_rsa_data_from_file("encryption_data.yaml")
-
-
-    crypto, block_leftover_len = encrypt_ebc(message.encode("utf-8"), rsa_data)
-    decrypted = decrypt_ebc(crypto, rsa_data, block_leftover_len)
-    print(decrypted.decode("utf-8"))

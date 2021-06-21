@@ -4,7 +4,16 @@ from display_functions import *
 from rsa_tools import rsa_lib_wrapper, encryption_utils
 import rsa_wrapper
 
-# Optional, index, tab, unrecognizedChunk = {}, 1, [], []
+
+use_library_rsa = True
+use_cbc = False
+decrypt_file_contents = False
+encrypt_file_contents_on_save = False
+generate_new_keys = True
+encryption_data_file_name = "encryption_data.yaml"
+
+
+f = open(file="data/sine440.wav", mode="rb")
 
 size = 0
 sample_len = 0
@@ -13,15 +22,6 @@ listChunk = None
 id3Chunk = None
 factChunk = None
 cueChunk = None
-
-use_library_rsa = True
-use_cbc = False
-decrypt_file_contents = False
-encrypt_file_contents_on_save = False
-generate_new_keys = True
-
-encryption_data_file_name = "encryption_data.yaml"
-f = open(file="data/sine440.wav", mode="rb")
 
 while 1:
     id = bytes.decode(f.read(4))
