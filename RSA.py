@@ -110,9 +110,7 @@ def choose(size):
     :return: wylosowana i przetestowana liczba
     """
     for _ in reversed(range(int(100 * (math.log(size, 2) + 1)))):  # liczba prób
-        n = secrets.randbelow(2 ** size)
-        while n <= 2 ** (size - 1):
-            n = secrets.randbelow(2 ** size)
+        n = secrets.randbits(size)
         if rabinMiller(n):
             return n
 
@@ -141,8 +139,8 @@ def choose_prime_numbers(size):
     # część prywatna
     d = inverse(e, drawrange)  # e^-1 mod drawrange
     print(d)
-    d = inverse2(e, drawrange)  # e^-1 mod drawrange
-    print(d)
+    # d = inverse2(e, drawrange)  # e^-1 mod drawrange
+    # print(d)
     # Zwróć klucze odpowiednio publiczny i prywatny i parę liczb
     return (e, num), (d, num), (p, q)
 
@@ -151,6 +149,6 @@ def RSA():  # to albo od razu choose_prime_numbers
     public, private, prime = choose_prime_numbers(100) # argument to potęga 2 odpowiadająca górnej granicy liczb
     return public, private, prime
 
-#
-# public, private, prime = choose_prime_numbers(1000)
-# print(public, private, prime)
+
+public, private, prime = choose_prime_numbers(1000)
+print(public, private, prime)
