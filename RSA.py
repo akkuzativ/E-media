@@ -152,5 +152,5 @@ def RSA():  # to albo od razu choose_prime_numbers
     return public, private, prime
 
 
-public, private, prime = choose_prime_numbers(1000)
+public, private, prime = choose_prime_numbers(700)
 print(public, private, prime)
