@@ -734,12 +734,17 @@ class LISTChunk(Chunk):
 class DataChunk(Chunk):
     class Contents:
         samples: list
+        raw_samples: bytearray
 
         def __init__(self, data: list):
             self.samples = data
+            self.raw_samples = None
 
         def __repr__(self):
             return str(self.samples)
+
+        def add_raw_data(self, raw_data: bytes):
+            self.raw_samples = bytearray(raw_data)
 
         pass
 
@@ -833,7 +838,7 @@ class DataChunk(Chunk):
 
     data: Contents
 
-    def __init__(self, id: str, size: int, data: list):
+    def __init__(self, id: str, size: int, data: Contents):
         Chunk.__init__(self=self, id=id, size=size, data=None)
         self.data = DataChunk.Contents(data)
 
@@ -844,9 +849,19 @@ class DataChunk(Chunk):
         return Chunk.__str__(self) + "\n" + str(self.data)
     pass
 
-    def write(self, file, fmtChunk: FmtChunk):
-        Chunk.write(self, file)
-        self.data.write(file, fmtChunk)
+    def write(self, file, fmtChunk: FmtChunk, overwrite_data: bytearray = None):
+        if overwrite_data is None:
+            Chunk.write(self, file)
+            self.data.write(file, fmtChunk)
+        else:
+            self.size = len(overwrite_data)
+            Chunk.write(self, file)
+            file.write(overwrite_data)
+
+
+    def update(self, new_byte_data: bytearray):
+        self.size = len(new_byte_data)
+        self.data.raw_samples = new_byte_data
 
 
 class ID3Chunk(Chunk):

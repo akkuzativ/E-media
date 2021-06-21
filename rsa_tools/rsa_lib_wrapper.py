@@ -2,7 +2,7 @@ import wav_chunks
 import rsa
 
 
-from encryption_utils import *
+from .encryption_utils import *
 
 
 def encrypt_ebc(message: bytes, public_key: rsa.PublicKey) -> bytes:
@@ -55,30 +55,13 @@ def decrypt_cbc(message: bytes, private_key: rsa.PrivateKey, init_vector: int) -
         decrypted_block = rsa.decrypt(block, private_key)
         previous_vector_as_number = int.from_bytes(previous_vector[0:len(decrypted_block)], byteorder="little")
         decrypted_block_as_number = int.from_bytes(decrypted_block, "little")
-        decrypted_block = (decrypted_block_as_number ^ previous_vector_as_number).to_bytes(length=len(decrypted_block), byteorder="little")
+        decrypted_block = (decrypted_block_as_number ^ previous_vector_as_number).to_bytes(length=len(decrypted_block),
+                                                                                           byteorder="little")
         decrypted_blocks.append(decrypted_block)
         previous_vector = block
     decrypted_message = b"".join(decrypted_blocks)
     return decrypted_message
 
 
-def encrypt_data_chunk(data_chunk: wav_chunks.DataChunk, fmt_chunk: wav_chunks.FmtChunk) -> wav_chunks.DataChunk:
-    message = wav_chunks.DataChunk.Contents.channels_to_bytes(fmt_chunk, data_chunk.data)
-    pass
-
-
-def decrypt_data_chunk(data_chunk: wav_chunks.DataChunk, fmt_chunk: wav_chunks.FmtChunk, block_size,
-                       public_key) -> wav_chunks.DataChunk:
-    message = wav_chunks.DataChunk.Contents.channels_to_bytes(fmt_chunk, data_chunk.data)
-    pass
-
-
-if __name__ == "__main__":
-    message = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam tincidunt odio quis aliquet placerat. Curabitur varius odio blandit sollicitudin congue. Sed nec ex id leo lobortis facilisis nec vitae nunc. Etiam vulputate vitae enim quis pulvinar. Duis quis sollicitudin leo. Nunc et venenatis risus. Vivamus dui velit, egestas at lectus non, fringilla vehicula ligula. Aliquam a nisl sapien. Phasellus blandit nisi in nisi egestas accumsan. Morbi id rhoncus libero. Integer hendrerit diam est, at dapibus odio cursus ac. "
-    pub, priv = rsa.newkeys(128)
-    # crypto = encrypt_ebc(bytearray(message.encode("utf-8")), pub)
-    # decrypted = decrypt_ebc(crypto, priv)
-    # print(decrypted.decode("utf-8"))
-    crypto = encrypt_ebc(bytearray(message.encode("utf-8")), pub)
-    decrypted = decrypt_ebc(crypto, priv)
-    print(decrypted.decode("utf-8"))
+def private_key_to_rsa_data(key: rsa.PrivateKey):
+    return RsaData(n=key.n, e=key.e, d=key.d, p=key.p, q=key.q)

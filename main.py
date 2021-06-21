@@ -1,15 +1,19 @@
-from matplotlib import pyplot as plt
-import scipy.fft
-import struct
-import audioop
-import numpy as np
-import os
-import math
+import rsa
 
-from wav_chunks import *
 from display_functions import *
+from rsa_tools import rsa_lib_wrapper, encryption_utils
+import rsa_wrapper
 
-# Optional, index, tab, unrecognizedChunk = {}, 1, [], []
+
+use_library_rsa = True
+use_cbc = False
+decrypt_file_contents = False
+encrypt_file_contents_on_save = False
+generate_new_keys = True
+encryption_data_file_name = "encryption_data.yaml"
+
+
+f = open(file="data/sine440.wav", mode="rb")
 
 size = 0
 sample_len = 0
@@ -18,9 +22,6 @@ listChunk = None
 id3Chunk = None
 factChunk = None
 cueChunk = None
-
-
-f = open(file="data/sine440.wav", mode="rb")
 
 while 1:
     id = bytes.decode(f.read(4))
@@ -61,11 +62,33 @@ while 1:
         Optional.update({index: cueChunk.id})
         index += 1
     elif id == "data":
-
-        raw_samples = f.read(size)
-        data = DataChunk.Contents.bytes_to_channels(fmtChunk, raw_samples, size)
-        dataChunk = DataChunk(id, size, data)
-        # print(dataChunk)
+        data = f.read(size)
+        raw_data = data
+        if decrypt_file_contents:
+            if use_library_rsa:
+                try:
+                    encryption_data = encryption_utils.read_rsa_data_from_file(encryption_data_file_name)
+                    if encryption_data.init_vector is None:
+                        data = rsa_lib_wrapper.decrypt_ebc(data, private_key=rsa.PrivateKey(*encryption_data))
+                    else:
+                        data = rsa_lib_wrapper.decrypt_cbc(data, private_key=rsa.PrivateKey(*encryption_data), init_vector=encryption_data.init_vector)
+                    raw_data = data
+                    data = DataChunk.Contents.bytes_to_channels(fmtChunk, data, len(data))
+                    print("Pomyślnie odszyfrowano plik.")
+                except Exception:
+                    print("Deszyfrowanie nie powiodło się. Wczytano plik w wersji niezmodyfikowanej.")
+                    data = DataChunk.Contents.bytes_to_channels(fmtChunk, data, size)
+            else:
+                encryption_data = encryption_utils.read_rsa_data_from_file(encryption_data_file_name)
+                if encryption_data.init_vector is None:
+                    data = rsa_wrapper.decrypt_ebc(data, encryption_data, block_leftover_len=encryption_data.block_leftover_len)
+                else:
+                    data = rsa_wrapper.decrypt_cbc(data, encryption_data, init_vector=encryption_data.init_vector)
+                raw_data = data
+                data = DataChunk.Contents.bytes_to_channels(fmtChunk, data, len(data))
+        else:
+            data = DataChunk.Contents.bytes_to_channels(fmtChunk, data, size)
+        dataChunk = DataChunk(id, len(data), data)
     else:
         data = f.read(size)
         unrecognizedChunk.append(Chunk(id, size, data))
@@ -107,10 +130,41 @@ while True:
     except Exception:
         break
 
+
+encrypted_samples = None
+
+
+if encrypt_file_contents_on_save:
+    if generate_new_keys:
+        if use_library_rsa:
+            pub, priv = rsa.newkeys(128)
+            encryption_data = rsa_lib_wrapper.private_key_to_rsa_data(priv)
+        else:
+            encryption_data = rsa_wrapper.new_keys(128)
+    else:
+        encryption_data = encryption_utils.read_rsa_data_from_file(encryption_data_file_name)
+
+    samples_as_bytes = DataChunk.Contents.channels_to_bytes(fmtChunk, dataChunk.data)
+
+    if use_cbc:
+        if use_library_rsa:
+            encrypted_samples, init_vector = rsa_lib_wrapper.encrypt_cbc(samples_as_bytes, rsa.PublicKey(*encryption_data))
+        else:
+            encrypted_samples, init_vector, block_leftover_len = rsa_wrapper.encrypt_cbc(samples_as_bytes, rsa.PublicKey(*encryption_data))
+            encryption_data.block_leftover_len = block_leftover_len
+        encryption_data.init_vector = init_vector
+    else:
+        if use_library_rsa:
+            encrypted_samples = rsa_lib_wrapper.encrypt_ebc(samples_as_bytes, rsa.PublicKey(*encryption_data))
+        else:
+            encrypted_samples = rsa_wrapper.encrypt_ebc(samples_as_bytes, encryption_data)
+
+    encryption_utils.write_rsa_data_to_file(encryption_data_file_name, encryption_data)
+
 file = open("nowy.wav", "wb")
 riffChunk.write(file)
 fmtChunk.write(file)
-dataChunk.write(file, fmtChunk)
+dataChunk.write(file, fmtChunk, encrypted_samples)
 try:
     if 'LIST' in tab:
         listChunk.write(file)
