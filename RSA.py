@@ -63,9 +63,9 @@ def test(a, r, d, num):
     if x == 1 or x == num - 1:
         return True
     for i in range(1, r - 1):
-        x = pow(x, 2, num)
         if x == num - 1:
             return True
+        x = pow(x, 2, num)
     return False
 
 
@@ -88,7 +88,7 @@ def rabinMiller(num, iterations=100):
 
     for i in range(1, iterations):  # test
         a = 0
-        while a == 0:
+        while a < 2:
             a = secrets.randbelow(num - 1)
         if not test(a, r, d, num):
             return False
@@ -111,7 +111,7 @@ def choose(size):
     :param size: potęga 2 - górna granica losowania
     :return: wylosowana i przetestowana liczba
     """
-    for _ in reversed(range(int(100 * (math.log(size, 2) + 1)))):  # liczba prób
+    for _ in range(int(100 * (math.log(size, 2) + 1))):  # liczba prób
         n = secrets.randbits(size)
         while n <= 2 ** (size - 1):
             n = secrets.randbits(size)
@@ -123,8 +123,8 @@ def choose_prime_numbers(size):
     # wybór liczb pierwszych
     p = choose(size)
     q = choose(size)
-    while p == q:
-        print('p and q are equal. Recalculate.')
+    while p == q or p is None or q is None:
+        print('p and q could be equal. Recalculate.')
         p = choose(size)
         q = choose(size)
 
@@ -154,5 +154,5 @@ def RSA():  # to albo od razu choose_prime_numbers
     return public, private, prime
 
 
-public, private, prime = choose_prime_numbers(1000)
+public, private, prime = choose_prime_numbers(900)
 print(public, private, prime)
