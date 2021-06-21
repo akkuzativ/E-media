@@ -4,6 +4,7 @@ import sys
 import math
 from random import randrange
 
+
 def multiply(x, y):
     base = 1536
     if x.bit_length() <= base or y.bit_length() <= base:
@@ -12,14 +13,14 @@ def multiply(x, y):
         n = max(x.bit_length(), y.bit_length())
         half = (n + 32) // 64 * 32
         mask = (1 << half) - 1
-        xlow = x & mask
-        ylow = y & mask
-        xhigh = x >> half
-        yhigh = y >> half
+        x_low = x & mask
+        y_low = y & mask
+        x_high = x >> half
+        y_high = y >> half
 
-        a = multiply(xhigh, yhigh)
-        b = multiply(xlow + xhigh, ylow + yhigh)
-        c = multiply(xlow, ylow)
+        a = multiply(x_high, y_high)
+        b = multiply(x_low + x_high, y_low + y_high)
+        c = multiply(x_low, y_low)
         d = b - a - c
         return (((a << half) + d) << half) + c
 
@@ -27,20 +28,20 @@ def multiply(x, y):
 def inverse(e, drawrange):
     x = 0
     y = 1
-    lx = 1
-    ly = 0
+    l_x = 1
+    l_y = 0
     orig_e = e  # e i drawrange żeby usunć negatywne wartości
     orig_drawrange = drawrange
     while drawrange != 0:
         q = e // drawrange
         (e, drawrange) = (drawrange, e % drawrange)
-        (x, lx) = ((lx - (q * x)), x)
-        (y, ly) = ((ly - (q * y)), y)
-    if lx < 0:
-        lx += orig_drawrange  # If neg wrap modulo orignal drawrange
-    if ly < 0:
-        ly += orig_e
-    return lx
+        (x, l_x) = ((l_x - (q * x)), x)
+        (y, l_y) = ((l_y - (q * y)), y)
+    if l_x < 0:
+        l_x += orig_drawrange
+    if l_y < 0:
+        l_y += orig_e
+    return l_x
 
 
 def inverse2(e, drawrange):
@@ -109,9 +110,7 @@ def choose(size):
     :return: wylosowana i przetestowana liczba
     """
     for _ in reversed(range(int(100 * (math.log(size, 2) + 1)))):  # liczba prób
-        n = secrets.randbelow(2 ** size)
-        while n <= 2 ** (size - 1):
-            n = secrets.randbelow(2 ** size)
+        n = secrets.randbits(size)
         if rabinMiller(n):
             return n
 
@@ -134,20 +133,21 @@ def choose_prime_numbers(size):
     while g != 1:
         # względnie pierwsza e
         e = random.randrange(1, drawrange)
-        # czy względnie pierwsza (Euclid'r Algorithm)
+        # czy względnie pierwsza (Euclid Algorithm)
         g = gcd(e, drawrange)
 
     # część prywatna
     d = inverse(e, drawrange)  # e^-1 mod drawrange
     print(d)
-    d = inverse2(e, drawrange)  # e^-1 mod drawrange
-    print(d)
+    # d = inverse2(e, drawrange)  # e^-1 mod drawrange
+    # print(d)
     # Zwróć klucze odpowiednio publiczny i prywatny i parę liczb
     return (e, num), (d, num), (p, q)
 
 
-def fun():
+def RSA():  # to albo od razu choose_prime_numbers
     public, private, prime = choose_prime_numbers(100) # argument to potęga 2 odpowiadająca górnej granicy liczb
+    return public, private, prime
 
 
 public, private, prime = choose_prime_numbers(1000)
