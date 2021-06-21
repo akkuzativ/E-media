@@ -73,10 +73,10 @@ while 1:
                         data = rsa_lib_wrapper.decrypt_cbc(data, private_key=rsa.PrivateKey(*encryption_data), init_vector=encryption_data.init_vector)
                     raw_data = data
                     data = DataChunk.Contents.bytes_to_channels(fmtChunk, data, len(data))
+                    print("Pomyślnie odszyfrowano plik.")
                 except Exception:
                     print("Deszyfrowanie nie powiodło się. Wczytano plik w wersji niezmodyfikowanej.")
                     data = DataChunk.Contents.bytes_to_channels(fmtChunk, data, size)
-                    dataChunk.data.add_raw_data(raw_data)
             else:
                 encryption_data = encryption_utils.read_rsa_data_from_file(encryption_data_file_name)
                 if encryption_data.init_vector is None:
@@ -88,7 +88,6 @@ while 1:
         else:
             data = DataChunk.Contents.bytes_to_channels(fmtChunk, data, size)
         dataChunk = DataChunk(id, len(data), data)
-        dataChunk.data.add_raw_data(raw_data)
     else:
         data = f.read(size)
         unrecognizedChunk.append(Chunk(id, size, data))

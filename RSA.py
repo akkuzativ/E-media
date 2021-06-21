@@ -154,5 +154,5 @@ def RSA():  # to albo od razu choose_prime_numbers
     return public, private, prime
 
 
-public, private, prime = choose_prime_numbers(900)
-print(public, private, prime)
+# public, private, prime = choose_prime_numbers(900)
+# print(public, private, prime)
