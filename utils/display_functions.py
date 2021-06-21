@@ -1,6 +1,6 @@
 import scipy.fft
 
-from wav_chunks import *
+from utils.wav_chunks import *
 
 
 def display_information(riff_chunk: RIFFHeader, data_chunk: DataChunk, fmt_chunk: FmtChunk, optional: dict,

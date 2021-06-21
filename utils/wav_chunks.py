@@ -734,17 +734,12 @@ class LISTChunk(Chunk):
 class DataChunk(Chunk):
     class Contents:
         samples: list
-        raw_samples: bytearray
 
         def __init__(self, data: list):
             self.samples = data
-            self.raw_samples = None
 
         def __repr__(self):
             return str(self.samples)
-
-        def add_raw_data(self, raw_data: bytes):
-            self.raw_samples = bytearray(raw_data)
 
         pass
 
@@ -833,7 +828,8 @@ class DataChunk(Chunk):
             return b"".join(bytes_samples)
 
         def write(self, file, fmtChunk: FmtChunk):
-            file.write(DataChunk.Contents.channels_to_bytes(fmtChunk, self))
+            bytes_to_save = DataChunk.Contents.channels_to_bytes(fmtChunk, self)
+            file.write(bytes_to_save)
 
 
     data: Contents

@@ -1,11 +1,10 @@
-import wav_chunks
 import rsa
 
 
 from .encryption_utils import *
 
 
-def encrypt_ebc(message: bytes, public_key: rsa.PublicKey) -> bytes:
+def encrypt_ecb(message: bytes, public_key: rsa.PublicKey) -> bytes:
     message_array = bytearray(message)
     block_size = int(public_key.n.bit_length() / 8) - 11
     blocks = divide_data_into_blocks(message_array, block_size)
@@ -16,7 +15,7 @@ def encrypt_ebc(message: bytes, public_key: rsa.PublicKey) -> bytes:
     return encrypted_message
 
 
-def decrypt_ebc(message: bytes, private_key: rsa.PrivateKey) -> bytes:
+def decrypt_ecb(message: bytes, private_key: rsa.PrivateKey) -> bytes:
     message_array = bytearray(message)
     block_size = int(private_key.n.bit_length() / 8)
     blocks = divide_data_into_blocks(message_array, block_size)

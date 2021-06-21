@@ -1,14 +1,13 @@
 import rsa
-
-from display_functions import *
-from rsa_tools import rsa_lib_wrapper, encryption_utils
-import rsa_wrapper
+from utils.display_functions import *
+from utils import rsa_lib_wrapper, encryption_utils, rsa_wrapper
 
 
+skip_display = False
+decrypt_file_contents = False
+encrypt_file_contents_on_save = True
 use_library_rsa = True
 use_cbc = False
-decrypt_file_contents = False
-encrypt_file_contents_on_save = False
 generate_new_keys = True
 encryption_data_file_name = "encryption_data.yaml"
 
@@ -65,11 +64,11 @@ while 1:
         data = f.read(size)
         raw_data = data
         if decrypt_file_contents:
-            if use_library_rsa:
+            encryption_data = encryption_utils.read_rsa_data_from_file(encryption_data_file_name)
+            if encryption_data.block_leftover_len is None: # to pole jest puste jesli wykorzystano szyfrowanie z biblioteki
                 try:
-                    encryption_data = encryption_utils.read_rsa_data_from_file(encryption_data_file_name)
                     if encryption_data.init_vector is None:
-                        data = rsa_lib_wrapper.decrypt_ebc(data, private_key=rsa.PrivateKey(*encryption_data))
+                        data = rsa_lib_wrapper.decrypt_ecb(data, private_key=rsa.PrivateKey(*encryption_data))
                     else:
                         data = rsa_lib_wrapper.decrypt_cbc(data, private_key=rsa.PrivateKey(*encryption_data), init_vector=encryption_data.init_vector)
                     raw_data = data
@@ -81,14 +80,14 @@ while 1:
             else:
                 encryption_data = encryption_utils.read_rsa_data_from_file(encryption_data_file_name)
                 if encryption_data.init_vector is None:
-                    data = rsa_wrapper.decrypt_ebc(data, encryption_data, block_leftover_len=encryption_data.block_leftover_len)
+                    data = rsa_wrapper.decrypt_ecb(data, encryption_data, block_leftover_len=encryption_data.block_leftover_len)
                 else:
                     data = rsa_wrapper.decrypt_cbc(data, encryption_data, init_vector=encryption_data.init_vector)
                 raw_data = data
                 data = DataChunk.Contents.bytes_to_channels(fmtChunk, data, len(data))
         else:
             data = DataChunk.Contents.bytes_to_channels(fmtChunk, data, size)
-        dataChunk = DataChunk(id, len(data), data)
+        dataChunk = DataChunk(id, len(data[0]), data)
     else:
         data = f.read(size)
         unrecognizedChunk.append(Chunk(id, size, data))
@@ -98,24 +97,25 @@ f.close()
 
 display_information(riffChunk, dataChunk, fmtChunk, Optional, listChunk, id3Chunk, factChunk, cueChunk)
 
-print("\n\nWybierz przedział próbek, z których zostanie narysowany przebieg oraz widma (najpierw dolny indeks, następnie górny, w przypadku nieprawidłowych indeksów wybrana zostanie całość)")
-print(f"(min: 0 --- max: {len(dataChunk.data.samples[0])-1})")
-print("Dolny indeks: ", end="")
-try:
-    lower = int(input())
-except:
-    lower = None
-print("Górny indeks: ", end="")
-try:
-    upper = int(input())
-except:
-    upper = None
+if not skip_display:
+    print("\n\nWybierz przedział próbek, z których zostanie narysowany przebieg oraz widma (najpierw dolny indeks, następnie górny, w przypadku nieprawidłowych indeksów wybrana zostanie całość)")
+    print(f"(min: 0 --- max: {len(dataChunk.data.samples[0])-1})")
+    print("Dolny indeks: ", end="")
+    try:
+        lower = int(input())
+    except:
+        lower = None
+    print("Górny indeks: ", end="")
+    try:
+        upper = int(input())
+    except:
+        upper = None
 
 
-display_waveform(dataChunk, fmtChunk, lower, upper)
-display_amplitude_spectrum(dataChunk, fmtChunk, lower, upper)
-display_phase_spectrum(dataChunk, fmtChunk, lower, upper)
-display_spectrogram(dataChunk, fmtChunk, lower, upper)
+    display_waveform(dataChunk, fmtChunk, lower, upper)
+    display_amplitude_spectrum(dataChunk, fmtChunk, lower, upper)
+    display_phase_spectrum(dataChunk, fmtChunk, lower, upper)
+    display_spectrogram(dataChunk, fmtChunk, lower, upper)
 
 ###
 # zapis
@@ -148,16 +148,16 @@ if encrypt_file_contents_on_save:
 
     if use_cbc:
         if use_library_rsa:
-            encrypted_samples, init_vector = rsa_lib_wrapper.encrypt_cbc(samples_as_bytes, rsa.PublicKey(*encryption_data))
+            encrypted_samples, init_vector = rsa_lib_wrapper.encrypt_cbc(samples_as_bytes, rsa.PublicKey(encryption_data.n, encryption_data.e))
         else:
-            encrypted_samples, init_vector, block_leftover_len = rsa_wrapper.encrypt_cbc(samples_as_bytes, rsa.PublicKey(*encryption_data))
+            encrypted_samples, init_vector, block_leftover_len = rsa_wrapper.encrypt_cbc(samples_as_bytes, rsa.PublicKey(encryption_data.n, encryption_data.e))
             encryption_data.block_leftover_len = block_leftover_len
         encryption_data.init_vector = init_vector
     else:
         if use_library_rsa:
-            encrypted_samples = rsa_lib_wrapper.encrypt_ebc(samples_as_bytes, rsa.PublicKey(*encryption_data))
+            encrypted_samples = rsa_lib_wrapper.encrypt_ecb(samples_as_bytes, rsa.PublicKey(encryption_data.n, encryption_data.e))
         else:
-            encrypted_samples = rsa_wrapper.encrypt_ebc(samples_as_bytes, encryption_data)
+            encrypted_samples = rsa_wrapper.encrypt_ecb(samples_as_bytes, encryption_data)
 
     encryption_utils.write_rsa_data_to_file(encryption_data_file_name, encryption_data)
 

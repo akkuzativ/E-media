@@ -1,16 +1,9 @@
-import struct
-
-import rsa.key
-
-import RSA
-import math
-from rsa_tools.encryption_utils import *
-
-import rsa_tools.rsa_lib_wrapper
+from utils import RSA
+from utils.encryption_utils import *
 
 
 def new_keys(bit_length: int):
-    public, private, primes = RSA.choose_prime_numbers(bit_length//2)
+    public, private, primes = RSA.choose_prime_numbers(bit_length // 2)
     e = public[0]
     n = public[1]
     d = private[0]
@@ -37,7 +30,7 @@ def decrypt_block(message: bytes, rsa_data: RsaData):
     return decrypted_message
 
 
-def encrypt_ebc(message: bytes, rsa_data: RsaData) -> (bytes, int):
+def encrypt_ecb(message: bytes, rsa_data: RsaData) -> (bytes, int):
     message_array = bytearray(message)
     block_size = 10
     blocks = divide_data_into_blocks(message_array, block_size)
@@ -51,7 +44,7 @@ def encrypt_ebc(message: bytes, rsa_data: RsaData) -> (bytes, int):
     return encrypted_message, block_leftover_len
 
 
-def decrypt_ebc(message: bytes, rsa_data: RsaData, block_leftover_len: int) -> bytes:
+def decrypt_ecb(message: bytes, rsa_data: RsaData, block_leftover_len: int) -> bytes:
     message_array = bytearray(message)
     original_block_size = 10
     block_size = int(rsa_data.n.bit_length() / 8) + 1
