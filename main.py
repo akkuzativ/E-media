@@ -6,7 +6,7 @@ from utils import rsa_lib_wrapper, encryption_utils, rsa_wrapper
 skip_display = False
 decrypt_file_contents = False
 encrypt_file_contents_on_save = True
-use_library_rsa = True
+use_library_rsa = False
 use_cbc = False
 generate_new_keys = True
 encryption_data_file_name = "encryption_data.yaml"
@@ -157,7 +157,8 @@ if encrypt_file_contents_on_save:
         if use_library_rsa:
             encrypted_samples = rsa_lib_wrapper.encrypt_ecb(samples_as_bytes, rsa.PublicKey(encryption_data.n, encryption_data.e))
         else:
-            encrypted_samples = rsa_wrapper.encrypt_ecb(samples_as_bytes, encryption_data)
+            encrypted_samples, block_leftover_len = rsa_wrapper.encrypt_ecb(samples_as_bytes, encryption_data)
+            encryption_data.block_leftover_len = block_leftover_len
 
     encryption_utils.write_rsa_data_to_file(encryption_data_file_name, encryption_data)
 
