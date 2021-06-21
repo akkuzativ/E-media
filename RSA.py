@@ -6,21 +6,21 @@ import math
 
 
 def multiply(x, y):
-    base = 1536
-    if x.bit_length() <= base or y.bit_length() <= base:
+    _CUTOFF = 1536
+    if x.bit_length() <= _CUTOFF or y.bit_length() <= _CUTOFF:  # Base case
         return x * y
     else:
         n = max(x.bit_length(), y.bit_length())
         half = (n + 32) // 64 * 32
         mask = (1 << half) - 1
-        x_low = x & mask
-        y_low = y & mask
-        x_high = x >> half
-        y_high = y >> half
+        xlow = x & mask
+        ylow = y & mask
+        xhigh = x >> half
+        yhigh = y >> half
 
-        a = multiply(x_high, y_high)
-        b = multiply(x_low + x_high, y_low + y_high)
-        c = multiply(x_low, y_low)
+        a = multiply(xhigh, yhigh)
+        b = multiply(xlow + xhigh, ylow + yhigh)
+        c = multiply(xlow, ylow)
         d = b - a - c
         return (((a << half) + d) << half) + c
 
@@ -113,6 +113,8 @@ def choose(size):
     """
     for _ in reversed(range(int(100 * (math.log(size, 2) + 1)))):  # liczba prób
         n = secrets.randbits(size)
+        while n <= 2 ** (size - 1):
+            n = secrets.randbits(size)
         if rabinMiller(n):
             return n
 
@@ -152,5 +154,5 @@ def RSA():  # to albo od razu choose_prime_numbers
     return public, private, prime
 
 
-public, private, prime = choose_prime_numbers(700)
+public, private, prime = choose_prime_numbers(1000)
 print(public, private, prime)
