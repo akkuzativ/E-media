@@ -3,13 +3,14 @@ import secrets
 
 
 class RsaData:
-    def __init__(self, n: int, e: int, d: int, p: int, q: int, init_vector: int = None):
+    def __init__(self, n: int, e: int, d: int, p: int, q: int, init_vector: int = None, block_leftover_len: int = None):
         self.e = e
         self.d = d
         self.n = n
         self.p = p
         self.q = q
         self.init_vector = init_vector
+        self.block_leftover_len = block_leftover_len
 
     def __iter__(self):
         return iter((self.n, self.e, self.d, self.p, self.q))
@@ -25,7 +26,8 @@ def read_rsa_data_from_file(file_name: str) -> RsaData:
         p = loaded_dict["p"]
         q = loaded_dict["q"]
         init_vector = loaded_dict["init_vector"]
-        return RsaData(n, e, d, p, q, init_vector)
+        block_leftover_len = loaded_dict["block_leftover_len"]
+        return RsaData(n, e, d, p, q, init_vector, block_leftover_len)
     else:
         raise Exception
 
@@ -38,7 +40,8 @@ def write_rsa_data_to_file(file_name: str, data: RsaData) -> None:
             "d": data.d,
             "p": data.p,
             "q": data.q,
-            "init_vector": data.init_vector
+            "init_vector": data.init_vector,
+            "block_leftover_len": data.block_leftover_len
         }
         yaml.dump(data=data_dict, Dumper=yaml.Dumper, stream=file, sort_keys=False)
 

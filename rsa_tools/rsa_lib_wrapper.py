@@ -63,16 +63,5 @@ def decrypt_cbc(message: bytes, private_key: rsa.PrivateKey, init_vector: int) -
     return decrypted_message
 
 
-def encrypt_data_chunk(data_chunk: wav_chunks.DataChunk, fmt_chunk: wav_chunks.FmtChunk) -> wav_chunks.DataChunk:
-    message = wav_chunks.DataChunk.Contents.channels_to_bytes(fmt_chunk, data_chunk.data)
-    pass
-
-
-def decrypt_data_chunk(data_chunk: wav_chunks.DataChunk, fmt_chunk: wav_chunks.FmtChunk, block_size,
-                       public_key) -> wav_chunks.DataChunk:
-    message = wav_chunks.DataChunk.Contents.channels_to_bytes(fmt_chunk, data_chunk.data)
-    pass
-
-
 def private_key_to_rsa_data(key: rsa.PrivateKey):
     return RsaData(n=key.n, e=key.e, d=key.d, p=key.p, q=key.q)
