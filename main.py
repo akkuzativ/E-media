@@ -18,6 +18,7 @@ use_library_rsa = True
 use_cbc = False
 decrypt_file_contents = False
 encrypt_file_contents_on_save = False
+generate_new_keys = True
 
 encryption_data_file_name = "encryption_data.yaml"
 f = open(file="data/sine440.wav", mode="rb")
@@ -130,19 +131,34 @@ while True:
         break
 
 
-(pub, priv) = rsa.key.newkeys(128)
-
 encrypted_samples = None
-init_vector = None
+
 
 if encrypt_file_contents_on_save:
-    samples_as_bytes = DataChunk.Contents.channels_to_bytes(fmtChunk, dataChunk.data)
-    if use_cbc:
-        encrypted_samples, init_vector = rsa_lib_wrapper.encrypt_cbc(samples_as_bytes, public_key=pub)
+    if generate_new_keys:
+        if use_library_rsa:
+            pub, priv = rsa.newkeys(128)
+            encryption_data = rsa_lib_wrapper.private_key_to_rsa_data(priv)
+        else:
+            encryption_data = rsa_wrapper.new_keys(128)
     else:
-        encrypted_samples = rsa_lib_wrapper.encrypt_ebc(samples_as_bytes, public_key=pub)
-    encryption_data = rsa_lib_wrapper.private_key_to_rsa_data(priv)
-    encryption_data.init_vector = init_vector
+        encryption_data = encryption_utils.read_rsa_data_from_file(encryption_data_file_name)
+
+    samples_as_bytes = DataChunk.Contents.channels_to_bytes(fmtChunk, dataChunk.data)
+
+    if use_cbc:
+        if use_library_rsa:
+            encrypted_samples, init_vector = rsa_lib_wrapper.encrypt_cbc(samples_as_bytes, rsa.PublicKey(*encryption_data))
+        else:
+            encrypted_samples, init_vector, block_leftover_len = rsa_wrapper.encrypt_cbc(samples_as_bytes, rsa.PublicKey(*encryption_data))
+            encryption_data.block_leftover_len = block_leftover_len
+        encryption_data.init_vector = init_vector
+    else:
+        if use_library_rsa:
+            encrypted_samples = rsa_lib_wrapper.encrypt_ebc(samples_as_bytes, rsa.PublicKey(*encryption_data))
+        else:
+            encrypted_samples = rsa_wrapper.encrypt_ebc(samples_as_bytes, encryption_data)
+
     encryption_utils.write_rsa_data_to_file(encryption_data_file_name, encryption_data)
 
 file = open("nowy.wav", "wb")

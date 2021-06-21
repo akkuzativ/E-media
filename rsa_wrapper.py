@@ -22,7 +22,9 @@ def new_keys(bit_length: int):
 def encrypt_block(message: bytes, rsa_data: RsaData) -> bytes:
     message_as_number = int.from_bytes(message, byteorder="little")
     encrypted_message_as_number = pow(message_as_number, rsa_data.e, rsa_data.n)
-    encrypted_message = int.to_bytes(encrypted_message_as_number, length=(rsa_data.n.bit_length()//8),
+    a = encrypted_message_as_number.bit_length()
+    b = rsa_data.n.bit_length()
+    encrypted_message = int.to_bytes(encrypted_message_as_number, length=(rsa_data.n.bit_length()//8+1),
                                      byteorder="little")
     return encrypted_message
 
@@ -37,7 +39,7 @@ def decrypt_block(message: bytes, rsa_data: RsaData):
 
 def encrypt_ebc(message: bytes, rsa_data: RsaData) -> (bytes, int):
     message_array = bytearray(message)
-    block_size = int(rsa_data.n.bit_length() / 8) - 11
+    block_size = 10
     blocks = divide_data_into_blocks(message_array, block_size)
     encrypted_blocks = list()
     for block in blocks:
@@ -51,11 +53,12 @@ def encrypt_ebc(message: bytes, rsa_data: RsaData) -> (bytes, int):
 
 def decrypt_ebc(message: bytes, rsa_data: RsaData, block_leftover_len: int) -> bytes:
     message_array = bytearray(message)
-    block_size = int(rsa_data.n.bit_length() / 8)
+    original_block_size = 10
+    block_size = int(rsa_data.n.bit_length() / 8) + 1
     blocks = divide_data_into_blocks(message_array, block_size)
     decrypted_blocks = list()
     for block in blocks:
-        decrypted_blocks.append(decrypt_block(block, rsa_data))
+        decrypted_blocks.append(decrypt_block(block, rsa_data)[0:original_block_size])
     if block_leftover_len > 0:
         decrypted_blocks[len(decrypted_blocks)-1] = decrypted_blocks[len(decrypted_blocks)-1][0:block_leftover_len]
     decrypted_message = b"".join(decrypted_blocks)
@@ -64,7 +67,7 @@ def decrypt_ebc(message: bytes, rsa_data: RsaData, block_leftover_len: int) -> b
 
 def encrypt_cbc(message: bytes, rsa_data: RsaData) -> (bytes, int, int):
     message_array = bytearray(message)
-    block_size = int(rsa_data.n.bit_length() / 8) - 11
+    block_size = 10
     init_vector = create_random_init_vector(rsa_data.n.bit_length())
     init_vector = rsa_data.init_vector
     previous_vector = init_vector.to_bytes(length=(rsa_data.n.bit_length()//8), byteorder="little")
@@ -86,7 +89,8 @@ def encrypt_cbc(message: bytes, rsa_data: RsaData) -> (bytes, int, int):
 
 def decrypt_cbc(message: bytes, rsa_data: RsaData, init_vector: int, block_leftover_len: int) -> bytes:
     message_array = bytearray(message)
-    block_size = int(rsa_data.n.bit_length() / 8)
+    block_size = int(rsa_data.n.bit_length() / 8) + 1
+    original_block_size = 10
     previous_vector = init_vector.to_bytes(length=(rsa_data.n.bit_length()//8), byteorder="little")
     blocks = divide_data_into_blocks(message_array, block_size)
     decrypted_blocks = list()
@@ -97,7 +101,7 @@ def decrypt_cbc(message: bytes, rsa_data: RsaData, init_vector: int, block_lefto
         decrypted_block_as_number = int.from_bytes(decrypted_block, "little")
         decrypted_block = (decrypted_block_as_number ^ previous_vector_as_number).to_bytes(length=len(decrypted_block),
                                                                                            byteorder="little")
-        decrypted_blocks.append(decrypted_block)
+        decrypted_blocks.append(decrypted_block[0:original_block_size])
         previous_vector = block
     if block_leftover_len > 0:
         decrypted_blocks[len(decrypted_blocks)-1] = decrypted_blocks[len(decrypted_blocks)-1][0:block_leftover_len]
@@ -106,7 +110,7 @@ def decrypt_cbc(message: bytes, rsa_data: RsaData, init_vector: int, block_lefto
 
 if __name__ == "__main__":
     message = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla convallis turpis urna, a egestas neque ultrices vitae. Proin interdum varius ultricies. Sed eu mauris egestas leo congue ullamcorper."
-    rsa_data = new_keys(1024)
+    rsa_data = new_keys(128)
     pub, priv = rsa.key.newkeys(128)
     #rsa_data = rsa_tools.rsa_lib_wrapper.private_key_to_rsa_data(priv)
     #rsa_data = read_rsa_data_from_file("encryption_data.yaml")
