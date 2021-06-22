@@ -4,26 +4,22 @@ from utils import rsa_lib_wrapper, encryption_utils, rsa_wrapper
 
 
 ## konfiguracja wykonania skryptu ##
-skip_display = False
-decrypt_file_contents_on_read = True
+skip_display = True
+decrypt_file_contents_on_read = False
 encrypt_file_contents_on_save = True
-use_library_rsa = False
+use_library_rsa = True
 use_cbc = False
 generate_new_keys = True
-new_key_bit_len = 128
+new_key_bit_len = 1024
+###################################
 encryption_data_file_name = "encryption_data.yaml"
-
-f = open(file="nowy.wav", mode="rb")
+save_file_name = "piano_encrypted.wav"
+f = open(file="data/gos_copy2.wav", mode="rb")
 ###################################
 
 
 size = 0
 sample_len = 0
-
-listChunk = None
-id3Chunk = None
-factChunk = None
-cueChunk = None
 
 while 1:
     id = bytes.decode(f.read(4))
@@ -102,6 +98,14 @@ while 1:
 
 f.close()
 
+if "listChunk" not in locals():
+    listChunk = None
+if "factChunk" not in locals():
+    factChunk = None
+if "id3Chunk" not in locals():
+    id3Chunk = None
+if "cueChunk" not in locals():
+    cueChunk = None
 
 display_information(riffChunk, dataChunk, fmtChunk, Optional, listChunk, id3Chunk, factChunk, cueChunk)
 
@@ -176,7 +180,7 @@ if encrypt_file_contents_on_save:
 
     encryption_utils.write_rsa_data_to_file(encryption_data_file_name, encryption_data)
 
-file = open("nowy.wav", "wb")
+file = open(save_file_name, "wb")
 riffChunk.write(file)
 fmtChunk.write(file)
 dataChunk.write(file, fmtChunk, encrypted_samples)
