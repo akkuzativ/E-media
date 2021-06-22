@@ -150,6 +150,10 @@ if encrypt_file_contents_on_save:
             encryption_data = rsa_wrapper.new_keys(new_key_bit_len)
     else:
         encryption_data = encryption_utils.read_rsa_data_from_file(encryption_data_file_name)
+        if not use_cbc:
+            encryption_data.init_vector = None
+        if use_library_rsa:
+            encryption_data.block_leftover_len = None
 
     samples_as_bytes = DataChunk.Contents.channels_to_bytes(fmtChunk, dataChunk.data)
 
