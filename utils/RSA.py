@@ -2,25 +2,24 @@ import random
 import secrets
 import sys
 import math
-# from random import randrange
 
 
 def multiply(x, y):
-    _CUTOFF = 1536
-    if x.bit_length() <= _CUTOFF or y.bit_length() <= _CUTOFF:  # Base case
+    base = 1536
+    if x.bit_length() <= base or y.bit_length() <= base:
         return x * y
     else:
         n = max(x.bit_length(), y.bit_length())
         half = (n + 32) // 64 * 32
         mask = (1 << half) - 1
-        xlow = x & mask
-        ylow = y & mask
-        xhigh = x >> half
-        yhigh = y >> half
+        x_low = x & mask
+        y_low = y & mask
+        x_high = x >> half
+        y_high = y >> half
 
-        a = multiply(xhigh, yhigh)
-        b = multiply(xlow + xhigh, ylow + yhigh)
-        c = multiply(xlow, ylow)
+        a = multiply(x_high, y_high)
+        b = multiply(x_low + x_high, y_low + y_high)
+        c = multiply(x_low, y_low)
         d = b - a - c
         return (((a << half) + d) << half) + c
 
@@ -154,5 +153,5 @@ def RSA():  # to albo od razu choose_prime_numbers
     return public, private, prime
 
 
-# public, private, prime = choose_prime_numbers(900)
-# print(public, private, prime)
+public, private, prime = choose_prime_numbers(900)
+print(public, private, prime)
