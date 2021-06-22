@@ -66,26 +66,27 @@ while 1:
         raw_data = data
         if decrypt_file_contents:
             encryption_data = encryption_utils.read_rsa_data_from_file(encryption_data_file_name)
-            if encryption_data.block_leftover_len is None: # to pole jest puste jesli wykorzystano szyfrowanie z biblioteki
-                try:
+            try:
+                if encryption_data.block_leftover_len is None: # to pole jest puste jesli wykorzystano szyfrowanie z biblioteki
+                        if encryption_data.init_vector is None:
+                            data = rsa_lib_wrapper.decrypt_ecb(data, private_key=rsa.PrivateKey(*encryption_data))
+                        else:
+                            data = rsa_lib_wrapper.decrypt_cbc(data, private_key=rsa.PrivateKey(*encryption_data), init_vector=encryption_data.init_vector)
+                        raw_data = data
+                        data = DataChunk.Contents.bytes_to_channels(fmtChunk, data, len(data))
+                        print("Pomyślnie odszyfrowano plik.")
+                else:
+                    encryption_data = encryption_utils.read_rsa_data_from_file(encryption_data_file_name)
                     if encryption_data.init_vector is None:
-                        data = rsa_lib_wrapper.decrypt_ecb(data, private_key=rsa.PrivateKey(*encryption_data))
+                        data = rsa_wrapper.decrypt_ecb(data, encryption_data, block_leftover_len=encryption_data.block_leftover_len)
                     else:
-                        data = rsa_lib_wrapper.decrypt_cbc(data, private_key=rsa.PrivateKey(*encryption_data), init_vector=encryption_data.init_vector)
+                        data = rsa_wrapper.decrypt_cbc(data, encryption_data, init_vector=encryption_data.init_vector)
                     raw_data = data
                     data = DataChunk.Contents.bytes_to_channels(fmtChunk, data, len(data))
                     print("Pomyślnie odszyfrowano plik.")
-                except Exception:
-                    print("Deszyfrowanie nie powiodło się. Wczytano plik w wersji niezmodyfikowanej.")
-                    data = DataChunk.Contents.bytes_to_channels(fmtChunk, data, size)
-            else:
-                encryption_data = encryption_utils.read_rsa_data_from_file(encryption_data_file_name)
-                if encryption_data.init_vector is None:
-                    data = rsa_wrapper.decrypt_ecb(data, encryption_data, block_leftover_len=encryption_data.block_leftover_len)
-                else:
-                    data = rsa_wrapper.decrypt_cbc(data, encryption_data, init_vector=encryption_data.init_vector)
-                raw_data = data
-                data = DataChunk.Contents.bytes_to_channels(fmtChunk, data, len(data))
+            except Exception:
+                print("Deszyfrowanie nie powiodło się. Wczytano plik w wersji niezmodyfikowanej.")
+                data = DataChunk.Contents.bytes_to_channels(fmtChunk, data, size)
         else:
             data = DataChunk.Contents.bytes_to_channels(fmtChunk, data, size)
         dataChunk = DataChunk(id, len(data[0]), data)
