@@ -15,8 +15,6 @@ def new_keys(bit_length: int):
 def encrypt_block(message: bytes, rsa_data: RsaData) -> bytes:
     message_as_number = int.from_bytes(message, byteorder="little")
     encrypted_message_as_number = pow(message_as_number, rsa_data.e, rsa_data.n)
-    a = encrypted_message_as_number.bit_length()
-    b = rsa_data.n.bit_length()
     encrypted_message = int.to_bytes(encrypted_message_as_number, length=(rsa_data.n.bit_length()//8+1),
                                      byteorder="little")
     return encrypted_message
