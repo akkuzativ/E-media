@@ -9,6 +9,7 @@ encrypt_file_contents_on_save = True
 use_library_rsa = False
 use_cbc = False
 generate_new_keys = True
+new_key_bit_len = 128
 encryption_data_file_name = "encryption_data.yaml"
 
 

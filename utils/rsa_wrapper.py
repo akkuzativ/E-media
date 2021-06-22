@@ -32,7 +32,7 @@ def decrypt_block(message: bytes, rsa_data: RsaData):
 
 def encrypt_ecb(message: bytes, rsa_data: RsaData) -> (bytes, int):
     message_array = bytearray(message)
-    block_size = 10
+    block_size = (rsa_data.n.bit_length()//8) - 1
     blocks = divide_data_into_blocks(message_array, block_size)
     encrypted_blocks = list()
     for block in blocks:
@@ -46,7 +46,7 @@ def encrypt_ecb(message: bytes, rsa_data: RsaData) -> (bytes, int):
 
 def decrypt_ecb(message: bytes, rsa_data: RsaData, block_leftover_len: int) -> bytes:
     message_array = bytearray(message)
-    original_block_size = 10
+    original_block_size = (rsa_data.n.bit_length()//8) - 1
     block_size = int(rsa_data.n.bit_length() / 8) + 1
     blocks = divide_data_into_blocks(message_array, block_size)
     decrypted_blocks = list()
@@ -60,7 +60,7 @@ def decrypt_ecb(message: bytes, rsa_data: RsaData, block_leftover_len: int) -> b
 
 def encrypt_cbc(message: bytes, rsa_data: RsaData) -> (bytes, int, int):
     message_array = bytearray(message)
-    block_size = 10
+    block_size = (rsa_data.n.bit_length()//8) - 1
     init_vector = create_random_init_vector(rsa_data.n.bit_length())
     previous_vector = init_vector.to_bytes(length=(rsa_data.n.bit_length()//8+1), byteorder="little")
     blocks = divide_data_into_blocks(message_array, block_size)
@@ -81,8 +81,8 @@ def encrypt_cbc(message: bytes, rsa_data: RsaData) -> (bytes, int, int):
 
 def decrypt_cbc(message: bytes, rsa_data: RsaData, init_vector: int, block_leftover_len: int) -> bytes:
     message_array = bytearray(message)
+    original_block_size = (rsa_data.n.bit_length() // 8) - 1
     block_size = int(rsa_data.n.bit_length() / 8) + 1
-    original_block_size = 10
     previous_vector = init_vector.to_bytes(length=(rsa_data.n.bit_length()//8+1), byteorder="little")
     blocks = divide_data_into_blocks(message_array, block_size)
     decrypted_blocks = list()
