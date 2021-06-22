@@ -827,6 +827,28 @@ class DataChunk(Chunk):
                 bytes_samples.append(bytes_sample)
             return b"".join(bytes_samples)
 
+        @staticmethod
+        def channels_to_bytes_uncompressed_if_possible(fmtChunk: FmtChunk, contents) -> bytes:
+            if fmtChunk.data.audio_format != 6 and fmtChunk.data.audio_format != 7:
+                return DataChunk.Contents.channels_to_bytes(fmtChunk, contents)
+            else:
+                combined_channels = [None] * (len(contents.samples) * len(contents.samples[0]))
+                for c in range(0, fmtChunk.data.num_channels):
+                    combined_channels[c::fmtChunk.data.num_channels] = contents.samples[c]
+
+                bytes_sample = b""
+                bytes_samples = []
+
+                for sample in combined_channels:
+                    bytes_sample = int.to_bytes(sample, byteorder="little", signed=False, length=sample.bit_length()//8)
+                    bytes_samples.append(bytes_sample)
+
+                fmtChunk.data.audio_format = 1
+                fmtChunk.data.bits_per_sample = contents.samples[0][0].bit_length()
+                fmtChunk.data.block_align = (fmtChunk.data.bits_per_sample // 8) * fmtChunk.data.num_channels
+
+                return b"".join(bytes_samples)
+
         def write(self, file, fmtChunk: FmtChunk):
             bytes_to_save = DataChunk.Contents.channels_to_bytes(fmtChunk, self)
             file.write(bytes_to_save)
