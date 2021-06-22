@@ -3,8 +3,9 @@ from utils.display_functions import *
 from utils import rsa_lib_wrapper, encryption_utils, rsa_wrapper
 
 
+## konfiguracja wykonania skryptu ##
 skip_display = False
-decrypt_file_contents = False
+decrypt_file_contents_on_read = True
 encrypt_file_contents_on_save = True
 use_library_rsa = False
 use_cbc = False
@@ -12,8 +13,9 @@ generate_new_keys = True
 new_key_bit_len = 128
 encryption_data_file_name = "encryption_data.yaml"
 
+f = open(file="nowy.wav", mode="rb")
+###################################
 
-f = open(file="data/sine440.wav", mode="rb")
 
 size = 0
 sample_len = 0
@@ -64,17 +66,17 @@ while 1:
     elif id == "data":
         data = f.read(size)
         raw_data = data
-        if decrypt_file_contents:
+        if decrypt_file_contents_on_read:
             encryption_data = encryption_utils.read_rsa_data_from_file(encryption_data_file_name)
             try:
                 if encryption_data.block_leftover_len is None: # to pole jest puste jesli wykorzystano szyfrowanie z biblioteki
-                        if encryption_data.init_vector is None:
-                            data = rsa_lib_wrapper.decrypt_ecb(data, private_key=rsa.PrivateKey(*encryption_data))
-                        else:
-                            data = rsa_lib_wrapper.decrypt_cbc(data, private_key=rsa.PrivateKey(*encryption_data), init_vector=encryption_data.init_vector)
-                        raw_data = data
-                        data = DataChunk.Contents.bytes_to_channels(fmtChunk, data, len(data))
-                        print("Pomyślnie odszyfrowano plik.")
+                    if encryption_data.init_vector is None:
+                        data = rsa_lib_wrapper.decrypt_ecb(data, private_key=rsa.PrivateKey(*encryption_data))
+                    else:
+                        data = rsa_lib_wrapper.decrypt_cbc(data, private_key=rsa.PrivateKey(*encryption_data), init_vector=encryption_data.init_vector)
+                    raw_data = data
+                    data = DataChunk.Contents.bytes_to_channels(fmtChunk, data, len(data))
+                    print("Pomyślnie odszyfrowano plik.")
                 else:
                     encryption_data = encryption_utils.read_rsa_data_from_file(encryption_data_file_name)
                     if encryption_data.init_vector is None:
@@ -139,10 +141,9 @@ encrypted_samples = None
 if encrypt_file_contents_on_save:
     if generate_new_keys:
         if use_library_rsa:
-            pub, priv = rsa.newkeys(128)
-            encryption_data = rsa_lib_wrapper.private_key_to_rsa_data(priv)
+            encryption_data = rsa_lib_wrapper.private_key_to_rsa_data(rsa.newkeys(new_key_bit_len)[1])
         else:
-            encryption_data = rsa_wrapper.new_keys(128)
+            encryption_data = rsa_wrapper.new_keys(new_key_bit_len)
     else:
         encryption_data = encryption_utils.read_rsa_data_from_file(encryption_data_file_name)
 
